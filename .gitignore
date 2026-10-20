@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.turbo/
+coverage/
+*.log
+.wrangler/
+.dev.vars
+.env*
+# Android / Gradle
+apps/android/.gradle/
+apps/android/build/
+apps/android/**/build/
+apps/android/local.properties
+*.keystore
+*.jks
+__pycache__/
