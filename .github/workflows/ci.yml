@@ -23,7 +23,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - run: pip install -r scripts/requirements.txt
