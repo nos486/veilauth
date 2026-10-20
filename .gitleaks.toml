@@ -1,0 +1,11 @@
+# Default gitleaks rules, plus an allowlist for the published, non-secret crypto test vectors.
+# Every key in these files is a fixed, public test input (spec/crypto.md §8).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public crypto test vectors"
+paths = [
+  '''^spec/test-vectors\.json$''',
+  '''^scripts/gen_test_vectors\.py$''',
+]
