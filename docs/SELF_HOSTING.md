@@ -199,6 +199,8 @@ Set these in GitHub → **Settings** → **Secrets and variables** → **Actions
 | `CLOUDFLARE_ACCOUNT_ID` | secret   | from `wrangler whoami`                                                                                                                        |
 | `STAGING_URL`           | variable | e.g. `https://veilauth-staging.<subdomain>.workers.dev`                                                                                       |
 | `PRODUCTION_URL`        | variable | e.g. `https://vault.example.com`                                                                                                              |
+| `TURNSTILE_SITE_KEY`    | variable | site key of your Turnstile widget ([step 3](#3-create-a-turnstile-widget-production)); hostname = your production domain                      |
+| `TURNSTILE_SECRET_KEY`  | secret   | secret key of the same widget                                                                                                                 |
 
 Then create a GitHub **environment** called `production` (Settings → Environments) and add
 yourself as a required reviewer, so every production deploy waits for your approval.
@@ -215,8 +217,12 @@ failing.
 On the first run you don't need to do steps 2 and 4 of section A yourself. Each workflow creates
 the D1 database if it is missing (and fills its id into its own copy of `wrangler.jsonc`), and
 generates any missing `JWT_PRIVATE_JWK`, `FAKE_SALT_SECRET` and `IP_HASH_SECRET` inside
-Cloudflare. Existing secrets are never replaced. For production you still set the Turnstile site
-key in `wrangler.jsonc` and `TURNSTILE_SECRET_KEY` with `wrangler secret put` (step 3).
+Cloudflare. Existing secrets are never replaced. For production, the release workflow also
+writes `TURNSTILE_SITE_KEY` into its copy of `wrangler.jsonc` and sets `TURNSTILE_SECRET_KEY` in
+Cloudflare, and stops with an error if either is missing.
+
+To redeploy production from `main` without a new release, open **Actions** → **Release** →
+**Run workflow**. Only a tag creates a GitHub Release.
 
 ## Custom domain (recommended, A or B)
 
