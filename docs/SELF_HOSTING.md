@@ -212,6 +212,12 @@ git tag v0.1.0 && git push origin v0.1.0
 Until `CLOUDFLARE_API_TOKEN` is set, the deploy jobs skip themselves with a notice instead of
 failing.
 
+On the first run you don't need to do steps 2 and 4 of section A yourself. Each workflow creates
+the D1 database if it is missing (and fills its id into its own copy of `wrangler.jsonc`), and
+generates any missing `JWT_PRIVATE_JWK`, `FAKE_SALT_SECRET` and `IP_HASH_SECRET` inside
+Cloudflare. Existing secrets are never replaced. For production you still set the Turnstile site
+key in `wrangler.jsonc` and `TURNSTILE_SECRET_KEY` with `wrangler secret put` (step 3).
+
 ## Custom domain (recommended, A or B)
 
 Dashboard → **Workers & Pages** → `veilauth` → **Settings** → **Domains & Routes** → **Add** →

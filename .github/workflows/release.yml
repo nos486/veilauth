@@ -34,6 +34,11 @@ jobs:
           cache: pnpm
       - if: env.CLOUDFLARE_API_TOKEN != ''
         run: pnpm install --frozen-lockfile && pnpm build && pnpm test
+      - name: Resolve D1 database id
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/worker
+        # Creates veilauth-production on first deploy and fills its id into wrangler.jsonc (CI copy only).
+        run: node scripts/setup-cloudflare.mjs production
       - name: Migrate D1
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: apps/worker
@@ -42,6 +47,11 @@ jobs:
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: apps/worker
         run: pnpm deploy:production
+      - name: Create missing secrets
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/worker
+        # First deploy only: generates JWT/HMAC keys inside Cloudflare; existing secrets are never replaced.
+        run: node scripts/generate-secrets.mjs --env production --missing-only
       - name: Smoke test
         if: env.CLOUDFLARE_API_TOKEN != '' && env.PRODUCTION_URL != ''
         run: scripts/smoke-test.sh "$PRODUCTION_URL"

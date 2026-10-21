@@ -5,6 +5,7 @@
 //   node scripts/generate-secrets.mjs --env staging       upload to the staging Worker
 //   node scripts/generate-secrets.mjs --env production    upload to the production Worker
 //   node scripts/generate-secrets.mjs --print             print once, to paste into the dashboard
+//   add --missing-only to --env to upload only secrets the Worker does not have yet (used by CI)
 //
 // Apart from --print, values are never printed. Run each deployed environment ONCE: rotating FAKE_SALT_SECRET changes
 // every fake prelogin salt (an observer could then tell real accounts from fake ones), and rotating
@@ -54,6 +55,19 @@ if (args.includes("--print")) {
     process.exit(1);
   }
   if (env === "staging") secrets.TURNSTILE_SECRET_KEY = TURNSTILE_TEST_SECRET;
+  if (args.includes("--missing-only")) {
+    const existing = JSON.parse(
+      execFileSync("npx", ["wrangler", "secret", "list", "--env", env, "--format", "json"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "inherit"],
+      }),
+    ).map((s) => s.name);
+    for (const name of existing) delete secrets[name];
+    if (Object.keys(secrets).length === 0) {
+      console.log(`all secrets already set on ${env}`);
+      process.exit(0);
+    }
+  }
   for (const [name, value] of Object.entries(secrets)) {
     execFileSync("npx", ["wrangler", "secret", "put", name, "--env", env], {
       input: value,
@@ -61,7 +75,7 @@ if (args.includes("--print")) {
     });
   }
   console.log(`uploaded ${Object.keys(secrets).join(", ")} to ${env}`);
-  if (env === "production") {
+  if (env === "production" && !args.includes("--missing-only")) {
     console.log(
       "now run: npx wrangler secret put TURNSTILE_SECRET_KEY --env production   (from the Turnstile dashboard)",
     );
