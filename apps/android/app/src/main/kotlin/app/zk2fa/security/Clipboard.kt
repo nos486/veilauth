@@ -37,7 +37,12 @@ class Clipboard(
         // In the background Android may hide the description; clearing then is the safe choice.
         val label = manager.primaryClipDescription?.label
         if (label != null && label != LABEL) return
-        manager.clearPrimaryClip()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            manager.clearPrimaryClip()
+        } else {
+            // API 26-27 have no clear; overwrite the code with an empty clip instead.
+            manager.setPrimaryClip(ClipData.newPlainText("", ""))
+        }
     }
 
     companion object {
