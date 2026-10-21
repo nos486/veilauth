@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Skip when Cloudflare is not configured
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; skipping production deploy."
+      - uses: actions/checkout@v5
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: pnpm/action-setup@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@v5
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: pnpm install --frozen-lockfile && pnpm build && pnpm test
+      - name: Migrate D1
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/worker
+        run: pnpm db:migrate:production
+      - name: Deploy
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/worker
+        run: pnpm deploy:production
+      - name: Smoke test
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.PRODUCTION_URL != ''
+        run: scripts/smoke-test.sh "$PRODUCTION_URL"
+
+  github-release:
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile && pnpm build
+      - name: Collect artifacts
+        run: |
+          mkdir -p release
+          (cd apps/worker && npx wrangler deploy --dry-run --env production --outdir ../../release/worker-bundle >/dev/null)
+          tar -C apps/worker -czf release/web-assets.tar.gz public
+          tar -C release -czf release/worker-bundle.tar.gz worker-bundle && rm -rf release/worker-bundle
+          cp spec/api.openapi.yaml spec/test-vectors.json release/
+          (cd release && sha256sum * > SHA256SUMS)
+          # Android APK/AAB are added here in Phase 3 (docs/DECISIONS.md D-019, D-020).
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Built by GitHub Actions from ${GITHUB_SHA}."
+            echo
+            echo "### SHA-256"
+            echo '```'
+            cat release/SHA256SUMS
+            echo '```'
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" release/* --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag

@@ -31,6 +31,8 @@ jobs:
       - name: Test vectors are up to date
         run: pnpm vectors:check
       - run: pnpm format:check
+      - name: OpenAPI spec is up to date
+        run: pnpm --filter @zk2fa/shared openapi:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

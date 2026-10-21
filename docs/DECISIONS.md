@@ -160,3 +160,99 @@ vault, and Google Play forbids it. Instead:
   repository secrets, a `SHA256SUMS` file and a release manifest attached to a GitHub Release
   (added in Phase 1 for the web build and Phase 3 for Android). The in-app updater (D-019) reads
   that release.
+
+## D-021 Clients choose `userId` and `deviceId`
+
+The AAD of the wrapped vault key and of encrypted device names contains these ids, so the client
+needs them before anything is uploaded. Clients generate UUIDv7s. The server validates the format
+and rejects ids that are already taken (`ID_TAKEN`). A device id that belongs to another account
+can never be re-used.
+
+## D-022 Sync push concurrency
+
+All writes of a push run in one `db.batch()` transaction. Its first statement sets
+`vault_revision = CASE WHEN vault_revision = <read value> THEN <read value + 1> ELSE NULL END`.
+If another push committed in between, the `NOT NULL` constraint aborts the whole batch, so two
+pushes can never share a revision and no client can miss changes. The Worker retries up to 5
+times with jittered backoff, then answers `409 SYNC_RETRY`, and clients simply sync again.
+
+## D-023 Sessions are checked on every request
+
+Besides verifying the JWT, every authenticated request checks that the device row is not revoked
+and that the token's `stamp` matches `users.security_stamp`. Logout, device revocation, password
+change and recovery therefore take effect immediately instead of after the 15-minute token
+lifetime. It costs one indexed D1 read per request.
+
+## D-024 Failed-login policy
+
+- Rate Limiting binding: 5 requests per minute per (IP, e-mail) for prelogin, login and recovery.
+- Lockout per **(e-mail, IP)**: after 5 failures within 24 h, the pair is locked for
+  1 min · 2^(n−5), capped at 1 h. Locking per pair instead of per account stops an attacker from
+  locking a victim out from another IP.
+- Per e-mail from any IP: 3 failures within 1 h make Turnstile mandatory on the next attempts.
+- Counter keys use HMAC'd e-mails and IPs, and unknown e-mails go through the identical path
+  (including a dummy PBKDF2), so neither the counters nor timing reveal whether an account exists.
+
+## D-025 Registration limit in D1
+
+The Workers Rate Limiting binding only supports 10 s and 60 s windows, so "3 registrations per
+hour per IP" is a fixed-window counter in D1. Turnstile is always required for registration
+outside development.
+
+## D-026 Recovery is two calls and the recovery key is single-use
+
+`POST /auth/recover/start` proves the recovery key (`recoveryAuth`) and returns `userId` and the
+recovery-wrapped vault key, which the client needs to unwrap the vault key and build the new AAD.
+`POST /auth/recover` repeats the proof and atomically replaces the password hash, both wraps and
+the recovery hash. It also rotates the security stamp, which revokes all sessions. A new recovery
+key is always issued, so the old words stop working.
+
+## D-027 Registration reveals an existing e-mail
+
+`register` answers `EMAIL_TAKEN` for an existing e-mail. Hiding this would require mandatory
+e-mail verification before an account exists, which the spec makes optional. The leak is
+limited by 3 registrations per hour per IP plus Turnstile. Prelogin and login do not leak.
+
+## D-028 Server-side envelope checks
+
+The server cannot decrypt anything, but it rejects item blobs that are not strict base64url,
+not envelope version 1, or not padded to a 256-byte bucket. A buggy or old client therefore
+cannot leak exact item sizes.
+
+## D-029 Tombstone purge horizon
+
+When the daily cron purges tombstones older than 90 days, it records the highest purged revision
+per user in `users.tombstone_horizon`. A `GET /sync?since=` below that horizon returns
+`full: true` with the complete item list, and the client replaces its cache.
+
+## D-030 Tooling substitutions
+
+- `@cloudflare/vitest-pool-workers` was renamed to `@cloudflare/vitest-plugin` (same project,
+  Vitest 4). Worker tests use it with a local D1 and the real migrations.
+- `spec/api.openapi.yaml` is generated with Zod 4's native `z.toJSONSchema` (JSON Schema 2020-12
+  is OpenAPI 3.1's schema dialect). `zod-to-openapi` hit a CJS/ESM dual-package problem with
+  Zod 4. CI fails if the file drifts from the schemas.
+
+## D-031 Minimal EdDSA JWT
+
+Access tokens are built and checked with WebCrypto Ed25519 directly. The verifier accepts only
+the exact header `{"alg":"EdDSA","typ":"JWT"}` that the service issues. There is no algorithm
+negotiation, so `alg: none` and HS/RS confusion attacks are impossible.
+
+## D-032 Refresh-token storage
+
+The current refresh token's SHA-256 is stored on the device row (one device = one session =
+one refresh family) with `refresh_expires_at`. Rotated hashes move to `refresh_history` until
+they would have expired. Presenting one again revokes the family (`REFRESH_REUSED`). Rotation is
+a conditional update on the old hash, so two concurrent refreshes cannot both win.
+
+## D-033 Turnstile per environment
+
+Development: off when `TURNSTILE_SITE_KEY` is empty. Staging: Cloudflare's always-pass test
+keys, so E2E tests can register. Production: real keys. A missing secret outside development is
+a hard error, never a silent bypass.
+
+## D-034 Logging allowlist
+
+The Worker logs only through `logError(event, { name, path })`: error class names and route
+patterns. ESLint forbids `console` everywhere else.

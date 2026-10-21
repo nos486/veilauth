@@ -1,0 +1,67 @@
+// Cloudflare Worker config. See docs/SELF_HOSTING.md for the deploy walkthrough.
+// Top level = local development (`wrangler dev`). `env.staging` / `env.production` = deployed copies,
+// each with its own D1 database. Secrets are never stored here: use `wrangler secret put`.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "veilauth",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "minify": true,
+  // The Worker serves the web client; only /api/* runs Worker code first (same origin, no CORS).
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "triggers": { "crons": ["17 3 * * *"] },
+  "vars": { "ENVIRONMENT": "development", "TURNSTILE_SITE_KEY": "" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "veilauth-dev",
+      "database_id": "local",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "ratelimits": [
+    { "name": "RL_AUTH", "namespace_id": "4201", "simple": { "limit": 5, "period": 60 } },
+  ],
+
+  "env": {
+    "staging": {
+      "name": "veilauth-staging",
+      "vars": { "ENVIRONMENT": "staging", "TURNSTILE_SITE_KEY": "1x00000000000000000000AA" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "veilauth-staging",
+          "database_id": "REPLACE_WITH_STAGING_D1_ID",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "ratelimits": [
+        { "name": "RL_AUTH", "namespace_id": "4202", "simple": { "limit": 5, "period": 60 } },
+      ],
+    },
+    "production": {
+      "name": "veilauth",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "TURNSTILE_SITE_KEY": "REPLACE_WITH_TURNSTILE_SITE_KEY",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "veilauth-production",
+          "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "ratelimits": [
+        { "name": "RL_AUTH", "namespace_id": "4203", "simple": { "limit": 5, "period": 60 } },
+      ],
+    },
+  },
+}

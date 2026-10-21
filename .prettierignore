@@ -3,3 +3,4 @@ node_modules
 pnpm-lock.yaml
 spec/test-vectors.json
 apps/android
+spec/api.openapi.yaml

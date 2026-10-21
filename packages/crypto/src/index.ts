@@ -33,9 +33,8 @@ export {
   INFO_KEK,
   INFO_RECOVERY_AUTH,
   INFO_RECOVERY_KEK,
-  normalizeEmail,
-  normalizePassword,
 } from "./kdf.js";
+export { normalizeEmail, normalizePassword } from "./normalize.js";
 export { assertId, ctx, isItemKind, ITEM_KINDS, type ItemKind } from "./context.js";
 export {
   ENVELOPE_OVERHEAD,

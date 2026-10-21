@@ -1,0 +1,34 @@
+{
+  "name": "@zk2fa/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@zk2fa/crypto": "workspace:*",
+    "@zk2fa/shared": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.6",
+    "@cloudflare/workers-types": "^5.20261021.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.151.3"
+  },
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "dev": "wrangler dev",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "db:migrate:local": "wrangler d1 migrations apply veilauth-dev --local",
+    "db:migrate:staging": "wrangler d1 migrations apply veilauth-staging --remote --env staging",
+    "db:migrate:production": "wrangler d1 migrations apply veilauth-production --remote --env production",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "secrets": "node scripts/generate-secrets.mjs"
+  }
+}

@@ -4,22 +4,25 @@ A zero-knowledge TOTP/HOTP/Steam authenticator: Cloudflare Workers + D1 backend,
 native Android app. The server never sees your secrets, issuers, account names or master
 password. Everything is encrypted on the device before upload.
 
-> **Status: Phase 0 (foundations) is done.** The crypto spec, shared test vectors and the
-> `otp` + `crypto` TypeScript packages are done and tested. The backend, web app and Android app
-> come in the next phases.
+> **Status: Phase 1 (backend) is done.** The crypto spec, shared test vectors, `otp` + `crypto`
+> packages and the Cloudflare Worker API (auth, sync, devices, rate limits) are done and tested.
+> The web app (Phase 2) and Android app (Phase 3) come next.
+>
+> **Deploy your own:** [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) (Cloudflare Workers + D1, about 15 minutes).
 
 ## Repository layout
 
 ```
 apps/
-  worker/        Cloudflare Worker: Hono + Drizzle + Zod, D1 migrations      (Phase 1)
+  worker/        Cloudflare Worker: Hono + Drizzle + Zod, D1 migrations      ✓
   web/           React 18 + Vite PWA                                         (Phase 2)
   android/       Kotlin, Compose, Hilt, Room, CameraX, ML Kit                (Phase 3)
 packages/
   crypto/        @zk2fa/crypto: Argon2id, HKDF, key wrap, envelopes, items   ✓
   otp/           @zk2fa/otp: RFC 4226/6238, Steam, otpauth://, GA migration  ✓
-  shared/        Zod API schemas → spec/api.openapi.yaml                     (Phase 1)
+  shared/        @zk2fa/shared: Zod API schemas → spec/api.openapi.yaml      ✓
 spec/
+  api.openapi.yaml   API contract (generated from packages/shared)
   crypto.md          normative crypto spec: formats, byte layouts, parameters
   test-vectors.json  source of truth every client must pass (generated)
   bip39-english.txt  pinned wordlist for recovery words
@@ -27,7 +30,8 @@ scripts/
   gen_test_vectors.py  independent Python reference implementation → test-vectors.json
 docs/
   DECISIONS.md  THREAT_MODEL.md  SELF_HOSTING.md
-.github/workflows/  ci.yml (lint/typecheck/test/audit/secret scan), codeql.yml
+  smoke-test.sh        post-deploy check used by the deploy workflows
+.github/workflows/  ci.yml, codeql.yml, deploy-staging.yml (main → staging), release.yml (tag → production + GitHub Release)
 ```
 
 ## Local development
@@ -37,7 +41,7 @@ Requirements: Node 22, pnpm 10 (`corepack enable`), Python 3.11+ with `cryptogra
 
 ```sh
 pnpm install
-pnpm test            # all packages (vitest)
+pnpm test            # all packages, incl. Worker tests on a local D1 (workerd)
 pnpm lint            # ESLint, strict type-checked rules
 pnpm typecheck
 pnpm format:check
@@ -45,6 +49,11 @@ pnpm format:check
 pip install -r scripts/requirements.txt
 pnpm vectors:check   # fails if spec/test-vectors.json drifted from the reference implementation
 python3 -I scripts/gen_test_vectors.py   # regenerate after changing spec/crypto.md
+pnpm --filter @zk2fa/shared openapi       # regenerate spec/api.openapi.yaml after changing schemas
+
+# run the API locally (http://localhost:8787)
+cd apps/worker
+node scripts/generate-secrets.mjs --dev && pnpm db:migrate:local && pnpm dev
 ```
 
 ## Security model in one paragraph
@@ -79,9 +88,22 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 - [x] `docs/DECISIONS.md`, `docs/THREAT_MODEL.md`
 - [x] CI: lint, typecheck, tests, vector drift, dependency audit, CodeQL, secret scan
 
+### Phase 1 exit checklist
+
+- [x] D1 schema + forward-only migrations (`apps/worker/migrations`), Drizzle models
+- [x] Auth: prelogin (fake salt), register, login, refresh rotation with reuse detection, logout, change password, two-step recovery, account deletion
+- [x] Sync: revisioned pull with tombstones, batched push with per-item conflicts, race-safe revision bump, 1000 items / 8 KB / 200 per push limits, purge horizon → full resync
+- [x] Devices list/revoke, `/time`, `/config`
+- [x] Rate Limiting binding, D1 registration limit, per-(e-mail, IP) lockout, Turnstile escalation
+- [x] Security headers on every API response, JSON errors with stable codes, no input echo, allowlisted logging
+- [x] Daily cron: tombstones (90 d), audit log (180 d), expired sessions/counters
+- [x] `spec/api.openapi.yaml` generated from Zod; CI fails on drift
+- [x] Worker tests (Vitest in workerd + local D1): auth, refresh reuse, sync conflicts, rate limits, lockout, deletion, cron, zero-knowledge DB dump audit
+- [x] Deploy guide ([docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)), setup/secret scripts, staging + release workflows with smoke test
+
 ### Acceptance criteria (spec §8.4)
 
-- [ ] Full D1 dump has no plaintext token data; zero-knowledge audit test passes (Phase 1–2)
+- [ ] Full D1 dump has no plaintext token data; zero-knowledge audit test passes. _The Worker-level audit test passes (`apps/worker/test/zero-knowledge.test.ts`); the browser E2E version comes in Phase 2._
 - [ ] Web and Android derive identical keys and decrypt each other's items. _The shared vectors that make this possible exist; the cross-client test comes in Phase 3._
 - [ ] Codes match Google Authenticator within /time-corrected drift. _Algorithms pass the RFC vectors; /time comes in Phase 1._
 - [ ] Biometric unlock works offline; new fingerprint forces password (Phase 3)

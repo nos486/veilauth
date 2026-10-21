@@ -1,0 +1,48 @@
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_URL: ${{ vars.STAGING_URL }}
+    steps:
+      - name: Skip when Cloudflare is not configured
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; skipping staging deploy (see docs/SELF_HOSTING.md §7)."
+      - uses: actions/checkout@v5
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: pnpm/action-setup@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@v5
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: env.CLOUDFLARE_API_TOKEN != ''
+        run: pnpm install --frozen-lockfile && pnpm build
+      - name: Migrate D1
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/worker
+        run: pnpm db:migrate:staging
+      - name: Deploy
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: apps/worker
+        run: pnpm deploy:staging
+      - name: Smoke test
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.STAGING_URL != ''
+        run: scripts/smoke-test.sh "$STAGING_URL"

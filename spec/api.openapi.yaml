@@ -1,0 +1,832 @@
+openapi: 3.1.0
+info:
+  title: veilauth API
+  version: 1.0.0
+  description: Zero-knowledge 2FA vault API. Generated from packages/shared; do not edit by hand.
+servers:
+  - url: /
+paths:
+  /api/v1/config:
+    get:
+      operationId: config
+      summary: Public client configuration
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigResponse"
+        "400": &a1
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401": *a1
+        "429": *a1
+  /api/v1/time:
+    get:
+      operationId: time
+      summary: Server UNIX time in ms for clock-drift correction
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/prelogin:
+    post:
+      operationId: prelogin
+      summary: KDF params and salt (deterministic fake for unknown e-mail)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreloginRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreloginResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/register:
+    post:
+      operationId: register
+      summary: Create an account with client-side derived keys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      summary: Log in with authKey; returns tokens and the wrapped vault key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/refresh:
+    post:
+      operationId: refresh
+      summary: Rotate the refresh token; reuse revokes the session family
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke the current device session
+      security:
+        - bearer: []
+      responses:
+        "204":
+          description: No content
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/change-password:
+    post:
+      operationId: changePassword
+      summary: Atomically replace auth hash and wrapped vault key; revokes other sessions
+      security:
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/recover/start:
+    post:
+      operationId: recoverStart
+      summary: Prove the recovery key and fetch the recovery-wrapped vault key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoverStartRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoverStartResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/auth/recover:
+    post:
+      operationId: recover
+      summary: Set a new password and recovery key using the old recovery key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoverRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/sync:
+    get:
+      operationId: sync
+      summary: Items with revision > since, including tombstones
+      security:
+        - bearer: []
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            default: 0
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/sync/push:
+    post:
+      operationId: push
+      summary: Batch upserts/deletes with per-item baseRevision; returns conflicts
+      security:
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/devices:
+    get:
+      operationId: devices
+      summary: List active sessions
+      security:
+        - bearer: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DevicesResponse"
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/devices/{id}:
+    delete:
+      operationId: revokeDevice
+      summary: Revoke a session
+      security:
+        - bearer: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/Id"
+      responses:
+        "204":
+          description: No content
+        "400": *a1
+        "401": *a1
+        "429": *a1
+  /api/v1/account:
+    delete:
+      operationId: deleteAccount
+      summary: Hard-delete the account; requires a fresh authKey
+      security:
+        - bearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountRequest"
+      responses:
+        "204":
+          description: No content
+        "400": *a1
+        "401": *a1
+        "429": *a1
+components:
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+            - BAD_REQUEST
+            - PAYLOAD_TOO_LARGE
+            - UNAUTHORIZED
+            - INVALID_CREDENTIALS
+            - TOKEN_EXPIRED
+            - SESSION_REVOKED
+            - REFRESH_REUSED
+            - FORBIDDEN
+            - NOT_FOUND
+            - EMAIL_TAKEN
+            - ID_TAKEN
+            - KDF_PARAMS_REJECTED
+            - RATE_LIMITED
+            - ACCOUNT_LOCKED
+            - TURNSTILE_REQUIRED
+            - TURNSTILE_FAILED
+            - VAULT_LIMIT
+            - SYNC_RETRY
+            - INTERNAL
+        message:
+          type: string
+      required:
+        - code
+        - message
+    Base64Url:
+      type: string
+      pattern: ^[A-Za-z0-9_-]*$
+    ChangePasswordRequest:
+      type: object
+      properties:
+        authKey:
+          $ref: "#/components/schemas/Key32"
+        newKdf:
+          $ref: "#/components/schemas/Kdf"
+        newAuthKey:
+          $ref: "#/components/schemas/Key32"
+        newWrappedVaultKey:
+          $ref: "#/components/schemas/WrappedKey"
+      required:
+        - authKey
+        - newKdf
+        - newAuthKey
+        - newWrappedVaultKey
+    ConfigResponse:
+      type: object
+      properties:
+        turnstileSiteKey:
+          type:
+            - string
+            - "null"
+        kdf:
+          type: object
+          properties:
+            alg:
+              type: string
+              const: argon2id
+            version:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            params:
+              $ref: "#/components/schemas/KdfParams"
+          required:
+            - alg
+            - version
+            - params
+        limits:
+          type: object
+          properties:
+            maxItemsPerUser:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            maxBlobChars:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            maxChangesPerPush:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - maxItemsPerUser
+            - maxBlobChars
+            - maxChangesPerPush
+      required:
+        - turnstileSiteKey
+        - kdf
+        - limits
+    DeleteAccountRequest:
+      type: object
+      properties:
+        authKey:
+          $ref: "#/components/schemas/Key32"
+      required:
+        - authKey
+    Device:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        platform:
+          $ref: "#/components/schemas/Platform"
+        nameEnc:
+          anyOf:
+            - $ref: "#/components/schemas/DeviceNameEnc"
+            - type: "null"
+        createdAt:
+          $ref: "#/components/schemas/UnixMs"
+        lastSeenAt:
+          $ref: "#/components/schemas/UnixMs"
+        current:
+          type: boolean
+      required:
+        - id
+        - platform
+        - nameEnc
+        - createdAt
+        - lastSeenAt
+        - current
+    DeviceInfo:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        platform:
+          $ref: "#/components/schemas/Platform"
+        nameEnc:
+          anyOf:
+            - $ref: "#/components/schemas/DeviceNameEnc"
+            - type: "null"
+      required:
+        - id
+        - platform
+        - nameEnc
+    DeviceNameEnc:
+      type: string
+      minLength: 39
+      maxLength: 512
+      pattern: ^[A-Za-z0-9_-]*$
+      $ref: "#/components/schemas/Base64Url"
+    DevicesResponse:
+      type: object
+      properties:
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Device"
+      required:
+        - devices
+    Email:
+      type: string
+      minLength: 3
+      maxLength: 254
+      pattern: ^[^\s@]+@[^\s@]+$
+    Id:
+      type: string
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+    ItemBlob:
+      type: string
+      minLength: 380
+      maxLength: 8192
+      pattern: ^[A-Za-z0-9_-]*$
+      $ref: "#/components/schemas/Base64Url"
+    ItemKind:
+      type: string
+      enum:
+        - token
+        - folder
+        - settings
+    Kdf:
+      type: object
+      properties:
+        alg:
+          type: string
+          const: argon2id
+        version:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        params:
+          $ref: "#/components/schemas/KdfParams"
+        salt:
+          $ref: "#/components/schemas/Salt16"
+      required:
+        - alg
+        - version
+        - params
+        - salt
+    KdfParams:
+      type: object
+      properties:
+        m:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        t:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        p:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - m
+        - t
+        - p
+    Key32:
+      minLength: 43
+      maxLength: 43
+      $ref: "#/components/schemas/Base64Url"
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        authKey:
+          $ref: "#/components/schemas/Key32"
+        device:
+          $ref: "#/components/schemas/DeviceInfo"
+        turnstileToken:
+          $ref: "#/components/schemas/TurnstileToken"
+      required:
+        - email
+        - authKey
+        - device
+    Platform:
+      type: string
+      enum:
+        - web
+        - android
+    PreloginRequest:
+      type: object
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+      required:
+        - email
+    PreloginResponse:
+      type: object
+      properties:
+        kdf:
+          $ref: "#/components/schemas/Kdf"
+      required:
+        - kdf
+    PushChange:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        blob:
+          anyOf:
+            - $ref: "#/components/schemas/ItemBlob"
+            - type: "null"
+        baseRevision:
+          $ref: "#/components/schemas/Revision"
+      required:
+        - id
+        - kind
+        - blob
+        - baseRevision
+    PushConflict:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        reason:
+          type: string
+          enum:
+            - revision_mismatch
+            - kind_mismatch
+        server:
+          anyOf:
+            - $ref: "#/components/schemas/VaultItem"
+            - type: "null"
+      required:
+        - id
+        - reason
+        - server
+    PushRequest:
+      type: object
+      properties:
+        changes:
+          minItems: 1
+          maxItems: 200
+          type: array
+          items:
+            $ref: "#/components/schemas/PushChange"
+      required:
+        - changes
+    PushResponse:
+      type: object
+      properties:
+        revision:
+          $ref: "#/components/schemas/Revision"
+        applied:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                $ref: "#/components/schemas/Id"
+              revision:
+                $ref: "#/components/schemas/Revision"
+            required:
+              - id
+              - revision
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PushConflict"
+      required:
+        - revision
+        - applied
+        - conflicts
+    RecoverRequest:
+      type: object
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        recoveryAuthKey:
+          $ref: "#/components/schemas/Key32"
+        newKdf:
+          $ref: "#/components/schemas/Kdf"
+        newAuthKey:
+          $ref: "#/components/schemas/Key32"
+        newWrappedVaultKey:
+          $ref: "#/components/schemas/WrappedKey"
+        newRecovery:
+          $ref: "#/components/schemas/RecoveryData"
+        device:
+          $ref: "#/components/schemas/DeviceInfo"
+      required:
+        - email
+        - recoveryAuthKey
+        - newKdf
+        - newAuthKey
+        - newWrappedVaultKey
+        - newRecovery
+        - device
+    RecoverStartRequest:
+      type: object
+      properties:
+        email:
+          $ref: "#/components/schemas/Email"
+        recoveryAuthKey:
+          $ref: "#/components/schemas/Key32"
+      required:
+        - email
+        - recoveryAuthKey
+    RecoverStartResponse:
+      type: object
+      properties:
+        userId:
+          $ref: "#/components/schemas/Id"
+        recoveryWrappedVaultKey:
+          $ref: "#/components/schemas/WrappedKey"
+      required:
+        - userId
+        - recoveryWrappedVaultKey
+    RecoveryData:
+      type: object
+      properties:
+        authKey:
+          $ref: "#/components/schemas/Key32"
+        wrappedVaultKey:
+          $ref: "#/components/schemas/WrappedKey"
+      required:
+        - authKey
+        - wrappedVaultKey
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          $ref: "#/components/schemas/Key32"
+      required:
+        - refreshToken
+    RefreshResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          $ref: "#/components/schemas/UnixMs"
+        refreshToken:
+          $ref: "#/components/schemas/Key32"
+      required:
+        - accessToken
+        - accessTokenExpiresAt
+        - refreshToken
+    RegisterRequest:
+      type: object
+      properties:
+        userId:
+          $ref: "#/components/schemas/Id"
+        email:
+          $ref: "#/components/schemas/Email"
+        kdf:
+          $ref: "#/components/schemas/Kdf"
+        authKey:
+          $ref: "#/components/schemas/Key32"
+        wrappedVaultKey:
+          $ref: "#/components/schemas/WrappedKey"
+        recovery:
+          $ref: "#/components/schemas/RecoveryData"
+        device:
+          $ref: "#/components/schemas/DeviceInfo"
+        turnstileToken:
+          $ref: "#/components/schemas/TurnstileToken"
+      required:
+        - userId
+        - email
+        - kdf
+        - authKey
+        - wrappedVaultKey
+        - recovery
+        - device
+    Revision:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+    Salt16:
+      minLength: 22
+      maxLength: 22
+      $ref: "#/components/schemas/Base64Url"
+    SessionResponse:
+      type: object
+      properties:
+        userId:
+          $ref: "#/components/schemas/Id"
+        deviceId:
+          $ref: "#/components/schemas/Id"
+        accessToken:
+          type: string
+        accessTokenExpiresAt:
+          $ref: "#/components/schemas/UnixMs"
+        refreshToken:
+          $ref: "#/components/schemas/Key32"
+        wrappedVaultKey:
+          $ref: "#/components/schemas/WrappedKey"
+        kdf:
+          $ref: "#/components/schemas/Kdf"
+        vaultRevision:
+          $ref: "#/components/schemas/Revision"
+        kdfUpgradeRequired:
+          type: boolean
+      required:
+        - userId
+        - deviceId
+        - accessToken
+        - accessTokenExpiresAt
+        - refreshToken
+        - wrappedVaultKey
+        - kdf
+        - vaultRevision
+        - kdfUpgradeRequired
+    SyncQuery:
+      type: object
+      properties:
+        since:
+          default: 0
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+    SyncResponse:
+      type: object
+      properties:
+        revision:
+          $ref: "#/components/schemas/Revision"
+        full:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/VaultItem"
+      required:
+        - revision
+        - full
+        - items
+    TimeResponse:
+      type: object
+      properties:
+        now:
+          $ref: "#/components/schemas/UnixMs"
+      required:
+        - now
+    TurnstileToken:
+      type: string
+      minLength: 1
+      maxLength: 2048
+    UnixMs:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+    VaultItem:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        blob:
+          anyOf:
+            - $ref: "#/components/schemas/ItemBlob"
+            - type: "null"
+        revision:
+          $ref: "#/components/schemas/Revision"
+        deleted:
+          type: boolean
+        updatedAt:
+          $ref: "#/components/schemas/UnixMs"
+      required:
+        - id
+        - kind
+        - blob
+        - revision
+        - deleted
+        - updatedAt
+    WrappedKey:
+      minLength: 82
+      maxLength: 82
+      $ref: "#/components/schemas/Base64Url"
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

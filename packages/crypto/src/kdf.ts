@@ -1,21 +1,12 @@
 import { argon2id } from "hash-wasm";
 import { type Bytes, copyBytes, utf8, wipe } from "./encoding.js";
+import { normalizePassword } from "./normalize.js";
 import { type KdfParams, KEY_BYTES, validateKdfParams } from "./params.js";
 
 export const INFO_AUTH = "zk2fa/v1/auth";
 export const INFO_KEK = "zk2fa/v1/kek";
 export const INFO_RECOVERY_KEK = "zk2fa/v1/recovery-kek";
 export const INFO_RECOVERY_AUTH = "zk2fa/v1/recovery-auth";
-
-/** spec/crypto.md §2 */
-export function normalizePassword(password: string): Bytes {
-  return utf8(password.normalize("NFKC"));
-}
-
-/** spec/crypto.md §2 */
-export function normalizeEmail(email: string): string {
-  return email.trim().normalize("NFKC").toLowerCase();
-}
 
 /** Raw Argon2id (no parameter policy). Prefer {@link deriveMasterKey}. */
 export async function argon2idRaw(
