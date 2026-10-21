@@ -189,7 +189,7 @@ The repository ships three workflows:
 | -------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `ci.yml`             | every PR and push | lint, typecheck, tests (including Worker tests on a local D1), vector + OpenAPI drift checks, audit, secret scan |
 | `deploy-staging.yml` | push to `main`    | D1 migrations → `wrangler deploy --env staging` → smoke test                                                     |
-| `release.yml`        | tag `v*`          | production migrations + deploy → smoke test → GitHub Release with build artifacts and `SHA256SUMS`               |
+| `release.yml`        | tag `v*`          | production migrations + deploy → smoke test → signed Android APK/AAB → GitHub Release with `SHA256SUMS`          |
 
 Set these in GitHub → **Settings** → **Secrets and variables** → **Actions**:
 
@@ -223,6 +223,40 @@ Cloudflare, and stops with an error if either is missing.
 
 To redeploy production from `main` without a new release, open **Actions** → **Release** →
 **Run workflow**. Only a tag creates a GitHub Release.
+
+## D. Android releases (signed APK and AAB)
+
+A tag build also produces the Android app when these are set (Settings → Secrets and variables
+→ Actions). Without them the release is published with the web build only, and the workflow
+prints a warning.
+
+| Name                        | Kind     | Value                                                                       |
+| --------------------------- | -------- | --------------------------------------------------------------------------- |
+| `ANDROID_KEYSTORE_BASE64`   | secret   | the release keystore, base64-encoded (see below)                            |
+| `ANDROID_KEYSTORE_PASSWORD` | secret   | keystore password                                                           |
+| `ANDROID_KEY_ALIAS`         | secret   | key alias, e.g. `veilauth`                                                  |
+| `ANDROID_KEY_PASSWORD`      | secret   | key password                                                                |
+| `PRODUCTION_URL`            | variable | the server the app talks to (already set for section C), built into the APK |
+
+Create the keystore once, on your own machine, and keep an offline backup. **Every future
+update must be signed with this same key**: the in-app updater and Android itself refuse an APK
+signed with another key, so losing it means users have to uninstall and reinstall.
+
+```sh
+keytool -genkeypair -v -keystore veilauth-release.jks -alias veilauth \
+  -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 veilauth-release.jks   # paste the output into ANDROID_KEYSTORE_BASE64
+```
+
+Each release then contains `veilauth-<version>.apk` (GitHub flavor, with the in-app updater),
+`veilauth-<version>-fdroid.apk` (no updater), `veilauth-<version>.aab`, `android-update.json`
+(what the updater reads: version, file name, SHA-256) and the signing certificate's SHA-256 in
+the release notes. Users can compare that fingerprint with
+`apksigner verify --print-certs veilauth-<version>.apk`.
+
+The app trusts the API host only with the certificate pins in `apps/android/app/build.gradle.kts`
+(the root CAs Cloudflare uses). If your custom domain uses another CA, build with
+`-Pveilauth.certPins=sha256/...` (or `none` to rely on the system trust store only).
 
 ## Custom domain (recommended, A or B)
 

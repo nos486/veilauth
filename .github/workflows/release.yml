@@ -76,9 +76,78 @@ jobs:
         if: env.CLOUDFLARE_API_TOKEN != '' && env.PRODUCTION_URL != ''
         run: scripts/smoke-test.sh "$PRODUCTION_URL"
 
-  github-release:
-    needs: deploy-production
+  android-release:
     if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      built: ${{ steps.check.outputs.built }}
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      VEILAUTH_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      VEILAUTH_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      VEILAUTH_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      VEILAUTH_API_URL: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Check signing setup
+        id: check
+        # The release key signs every future update (D-019); see docs/SELF_HOSTING.md, section D.
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$VEILAUTH_KEYSTORE_PASSWORD" ] || [ -z "$VEILAUTH_KEY_ALIAS" ] || [ -z "$VEILAUTH_KEY_PASSWORD" ]; then
+            echo "::warning::Android signing secrets are not set; this release has no APK (docs/SELF_HOSTING.md, section D)."
+            echo "built=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$VEILAUTH_API_URL" ]; then
+            echo "::warning::The PRODUCTION_URL variable is not set, so the app would not know its server; this release has no APK."
+            echo "built=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "built=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v5
+        if: steps.check.outputs.built == 'true'
+      - uses: actions/setup-java@v5
+        if: steps.check.outputs.built == 'true'
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v5
+        if: steps.check.outputs.built == 'true'
+      - name: Version and keystore
+        if: steps.check.outputs.built == 'true'
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          IFS=. read -r major minor patch <<< "${v%%-*}"
+          echo "VEILAUTH_VERSION_NAME=$v" >> "$GITHUB_ENV"
+          echo "VEILAUTH_VERSION_CODE=$((major * 1000000 + minor * 1000 + patch))" >> "$GITHUB_ENV"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "VEILAUTH_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Test and build signed APKs and AAB
+        if: steps.check.outputs.built == 'true'
+        run: apps/android/scripts/gradle-ci.sh test :app:assembleGithubRelease :app:bundleGithubRelease :app:assembleFdroidRelease
+      - name: Collect, hash and describe
+        if: steps.check.outputs.built == 'true'
+        run: |
+          v="$VEILAUTH_VERSION_NAME"
+          out=apps/android/app/build/outputs
+          mkdir -p android
+          cp "$out/apk/github/release/app-github-release.apk" "android/veilauth-$v.apk"
+          cp "$out/apk/fdroid/release/app-fdroid-release.apk" "android/veilauth-$v-fdroid.apk"
+          cp "$out/bundle/githubRelease/app-github-release.aab" "android/veilauth-$v.aab"
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs "android/veilauth-$v.apk" | grep -i "SHA-256" > android/android-signing-cert.txt
+          sha=$(sha256sum "android/veilauth-$v.apk" | cut -d' ' -f1)
+          printf '{"versionName":"%s","versionCode":%s,"apk":"veilauth-%s.apk","sha256":"%s"}\n' \
+            "$v" "$VEILAUTH_VERSION_CODE" "$v" "$sha" > android/android-update.json
+          rm -f "$RUNNER_TEMP/release.jks"
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.built == 'true'
+        with:
+          name: android
+          path: android
+          retention-days: 7
+
+  github-release:
+    needs: [deploy-production, android-release]
+    if: always() && startsWith(github.ref, 'refs/tags/') && needs.deploy-production.result == 'success' && needs.android-release.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -96,8 +165,13 @@ jobs:
           cp apps/web/dist/SHA256SUMS release/web-SHA256SUMS
           tar -C release -czf release/worker-bundle.tar.gz worker-bundle && rm -rf release/worker-bundle
           cp spec/api.openapi.yaml spec/test-vectors.json release/
-          (cd release && sha256sum * > SHA256SUMS)
-          # Android APK/AAB are added here in Phase 3 (docs/DECISIONS.md D-019, D-020).
+      - uses: actions/download-artifact@v4
+        if: needs.android-release.outputs.built == 'true'
+        with:
+          name: android
+          path: release
+      - name: Hash everything
+        run: (cd release && sha256sum * > SHA256SUMS)
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,6 +184,13 @@ jobs:
             cat release/SHA256SUMS
             echo '```'
             echo
+            if [ -f release/android-signing-cert.txt ]; then
+              echo "### Android signing certificate"
+              echo '```'
+              cat release/android-signing-cert.txt
+              echo '```'
+              echo
+            fi
             echo "### Web app files (compare with what your browser is served)"
             echo '```'
             cat release/web-SHA256SUMS

@@ -4,9 +4,9 @@ A zero-knowledge TOTP/HOTP/Steam authenticator: Cloudflare Workers + D1 backend,
 native Android app. The server never sees your secrets, issuers, account names or master
 password. Everything is encrypted on the device before upload.
 
-> **Status: Phase 2 (web app) is done.** The crypto spec, shared test vectors, `otp` + `crypto`
-> packages, the Cloudflare Worker API and the installable web app (PWA) are done and tested.
-> The Android app (Phase 3) comes next.
+> **Status: Phase 3 (Android app) is done.** The crypto spec, shared test vectors, `otp` + `crypto`
+> packages, the Cloudflare Worker API, the installable web app (PWA) and the Android app are done
+> and tested. Phase 4 (importers, backups, recovery UI) comes next.
 >
 > **Deploy your own:** [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) (Cloudflare Workers + D1, about 15 minutes).
 
@@ -16,7 +16,7 @@ password. Everything is encrypted on the device before upload.
 apps/
   worker/        Cloudflare Worker: Hono + Drizzle + Zod, D1 migrations      ✓
   web/           React 18 + Vite PWA, crypto in a Web Worker                 ✓
-  android/       Kotlin, Compose, Hilt, Room, CameraX, ML Kit                (Phase 3)
+  android/       Kotlin + Compose app; pure-JVM core modules on the vectors   ✓
 packages/
   crypto/        @zk2fa/crypto: Argon2id, HKDF, key wrap, envelopes, items   ✓
   otp/           @zk2fa/otp: RFC 4226/6238, Steam, otpauth://, GA migration  ✓
@@ -103,8 +103,8 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 | 0     | Monorepo, crypto spec, test vectors, `otp` + `crypto` packages                                                                          | ✅ done |
 | 1     | Worker: D1 schema, auth, sync, devices, rate limits, OpenAPI, staging deploy, release workflow                                          | ✅ done |
 | 2     | Web MVP: signup + recovery key, unlock, vault CRUD, QR/URI/manual add, sync, auto-lock, PWA auto-update                                 | ✅ done |
-| 3     | Android MVP: Kotlin crypto/otp on the shared vectors, biometric unlock, QR, sync, FLAG_SECURE, signed APK/AAB releases + in-app updater | next    |
-| 4     | Importers, encrypted backup, trash, folders, icons, password change, recovery, account deletion                                         |         |
+| 3     | Android MVP: Kotlin crypto/otp on the shared vectors, biometric unlock, QR, sync, FLAG_SECURE, signed APK/AAB releases + in-app updater | ✅ done |
+| 4     | Importers, encrypted backup, trash, folders, icons, password change, recovery, account deletion                                         | next    |
 | 5     | Passkeys/PRF, widget, QS tile, Wear OS, Autofill, F-Droid flavor                                                                        |         |
 
 ### Phase 0 exit checklist
@@ -145,15 +145,29 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 - [x] Unit tests (crypto worker, sync conflicts on two devices, API client refresh/rotation, parsers) and the Playwright E2E from spec §8.1, with WCAG 2.1 AA checks (axe) and a CSP-violation check; E2E runs in CI
 - [x] Worker serves the built app; smoke test checks the page CSP, SRI and service worker
 
+### Phase 3 exit checklist
+
+- [x] `apps/android`: Gradle 9.7, AGP 9.3, Kotlin 2.3, Compose; explicit API mode and warnings-as-errors in the core modules
+- [x] `:core:otp` and `:core:crypto` re-implement the TS packages and pass every section of `spec/test-vectors.json` (Argon2id, HKDF, key hierarchy, recovery words, JCS + padding, item envelopes byte-for-byte, tamper and invalid-envelope cases, KDF policy, HOTP/TOTP/Steam, `otpauth://`, Google Authenticator migration)
+- [x] `:core:api`: models generated from `spec/api.openapi.yaml` (`pnpm --filter @zk2fa/shared kotlin`, drift-checked in CI) and an OkHttp client with single-flight refresh rotation
+- [x] `:core:vault`: log-in, offline unlock, ciphertext store, sync and conflict rules ported from the web client and tested on two simulated devices
+- [x] Log-in, password unlock, biometric unlock (Keystore key bound to strong biometrics, invalidated by new enrollments)
+- [x] Add by camera (CameraX + on-device ML Kit), screenshot (Photo Picker), Google Authenticator export, `otpauth://` link or manual entry; edit, trash, restore, delete
+- [x] Room cache holds ciphertext only; WorkManager syncs in the background without the vault key
+- [x] `FLAG_SECURE`, sensitive clipboard flag + clearing after 30 s, auto-lock, `allowBackup=false` and no data extraction, HTTPS only, certificate pinning ([D-047](docs/DECISIONS.md))
+- [x] Signed APK + AAB built by `release.yml` from repository secrets, with `android-update.json`, SHA-256 sums and the signing-certificate fingerprint ([SELF_HOSTING.md](docs/SELF_HOSTING.md#d-android-releases-signed-apk-and-aab))
+- [x] In-app updater (GitHub flavor): checks GitHub Releases, verifies SHA-256 and the signing certificate, installs with `PackageInstaller` ([D-019](docs/DECISIONS.md)); F-Droid flavor has none
+- [x] CI builds and lints the app and runs all Kotlin tests; Kotlin and Gradle errors show up as annotations
+
 ### Acceptance criteria (spec §8.4)
 
 - [x] Full D1 dump has no plaintext token data; zero-knowledge audit test passes. _Worker-level audit (`apps/worker/test/zero-knowledge.test.ts`) and the browser E2E, which scans every byte of the local D1 files (including the WAL) for the token's issuer, account, secret, both passwords and the recovery words._
-- [ ] Web and Android derive identical keys and decrypt each other's items. _The shared vectors exist; the cross-client test comes in Phase 3._
+- [x] Web and Android derive identical keys and decrypt each other's items. _Both clients reproduce the same keys and the same envelopes byte-for-byte from `spec/test-vectors.json` (the Python reference generates them), and each decrypts the other's fixed-nonce output. A live web-to-phone test on a device is still to be done by hand._
 - [x] Codes match Google Authenticator within /time-corrected drift. _RFC 4226/6238 vectors pass; the E2E compares the web app's code with an independent computation; the web clock is corrected with `/time`._
-- [ ] Biometric unlock works offline; new fingerprint forces password (Phase 3)
+- [ ] Biometric unlock works offline; new fingerprint forces password. _Implemented (Keystore key with `setInvalidatedByBiometricEnrollment`, unlock never needs the network); needs a check on a real phone._
 - [x] Password change logs out other devices and keeps tokens. _E2E: browser B is sent to log-in on its next sync, the old password is refused, the new one shows the same token._
 - [ ] Recovery key restores access. _Crypto and server flow are tested; the recovery UI comes in Phase 4._
-- [x] Offline edits on two devices never lose a token (web). _`apps/web/test/sync.test.ts`; Android joins in Phase 3._
-- [ ] Argon2id unlock < 1.5 s on a mid-range 2021 Android phone (Phase 3). _Web: Argon2id runs in a Web Worker, so the UI never blocks._
+- [x] Offline edits on two devices never lose a token. _`apps/web/test/sync.test.ts` and `apps/android/core/vault/src/test/.../VaultSyncTest.kt`._
+- [ ] Argon2id unlock < 1.5 s on a mid-range 2021 Android phone. _Not measured yet. Android uses BouncyCastle's pure-JVM Argon2id ([D-045](docs/DECISIONS.md)), off the main thread; if a real device is slower, switch to a native implementation behind the same vectors. Biometric unlock skips Argon2id entirely._
 - [x] Accessibility ≥ 90 and no CSP violations. _The E2E runs axe-core (Lighthouse's accessibility engine) with the WCAG 2.1 AA rules on every screen in light and dark mode with zero violations, and fails on any CSP or Trusted Types violation. Lighthouse 12 no longer has a PWA category; installability comes from the manifest and service worker._
 - [x] README covers local dev, self-hosting ([docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)) and the security model.

@@ -363,3 +363,36 @@ is built and tested anywhere: `:core:otp`, `:core:crypto` (both checked against
 web client and tested against a fake server). `:app` holds only Android glue: Room, Keystore,
 biometrics, camera, WorkManager, UI and the updater. `-Pveilauth.coreOnly=true` builds the core
 modules without Google Maven.
+
+## D-047 Android certificate pinning
+
+The app pins the API host with OkHttp's `CertificatePinner` to the SPKI hashes of the root CAs
+Cloudflare issues edge certificates from (Google Trust Services R1/R3/R4, ISRG X1/X2, SSL.com
+RSA/ECC and the 2022 roots, USERTrust RSA/ECC for Sectigo). Pinning the leaf or intermediate
+would break the app whenever Cloudflare rotates its certificate, which happens every few weeks;
+roots cover rotation and a change between Cloudflare's CAs, and still stop a rogue certificate
+from any other CA in the system store. `network_security_config.xml` also disables cleartext and
+user-installed CAs. Self-hosters on another CA override the list with `-Pveilauth.certPins`
+(SELF_HOSTING.md section D). The GitHub download client for the updater is not pinned: every APK
+is checked by SHA-256 and signing certificate instead (D-019).
+
+## D-048 Android Phase 3 scope
+
+- Log-in, password and biometric unlock, vault list, add (camera, screenshot via the Photo
+  Picker, Google Authenticator export, `otpauth://` link, manual), edit, trash, sync, auto-lock,
+  settings and the updater. Sign-up, recovery, password change, devices and account deletion
+  stay in the web app until Phase 4 (the log-in screen says so).
+- Turnstile: the server asks for it on log-in only after three failed attempts for an account.
+  The app has no WebView, so it shows a message (log in once on the web, or wait an hour) rather
+  than embedding Cloudflare's script. Revisit in Phase 4.
+- Flavors: `github` (in-app updater) and `fdroid` (none). A `play` flavor with Google Play
+  In-App Updates comes with a Play listing.
+- Biometric unlock wraps the vault key under an Android Keystore AES-GCM key that requires a
+  strong biometric for every use and is invalidated by a new enrollment; the app then falls back
+  to the password and turns biometric unlock off. "Never auto-lock" is offered only with
+  biometric unlock on (spec §2).
+- Refresh tokens are sealed with a separate Keystore key (no user authentication) so the
+  background sync worker can run while the vault is locked; it moves ciphertext only.
+- `versionCode = major·1 000 000 + minor·1 000 + patch`, taken from the tag.
+- QR decoding uses ML Kit's bundled model (on-device, no Play Services). It is not free software,
+  so the F-Droid build will need a ZXing-based scanner before submission (Phase 5).
