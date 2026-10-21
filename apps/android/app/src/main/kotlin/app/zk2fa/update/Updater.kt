@@ -37,3 +37,8 @@ interface Updater {
     /** Downloads, verifies hash and signing certificate, then hands the APK to PackageInstaller. */
     suspend fun install(info: UpdateInfo)
 }
+
+/** Why an update failed: a stable code, never a URL or file contents. */
+class UpdateException(
+    val reason: String,
+) : Exception(reason)

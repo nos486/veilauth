@@ -30,10 +30,6 @@ private data class ReleaseManifest(
     val sha256: String,
 )
 
-class UpdateException(
-    val reason: String,
-) : Exception(reason)
-
 fun createUpdater(
     context: Context,
     http: OkHttpClient,
