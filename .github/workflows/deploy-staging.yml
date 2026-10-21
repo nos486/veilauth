@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Skip when Cloudflare is not configured
         if: env.CLOUDFLARE_API_TOKEN == ''
-        run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; skipping staging deploy (see docs/SELF_HOSTING.md §7)."
+        run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; skipping staging deploy (see docs/SELF_HOSTING.md section C)."
       - uses: actions/checkout@v5
         if: env.CLOUDFLARE_API_TOKEN != ''
       - uses: pnpm/action-setup@v4

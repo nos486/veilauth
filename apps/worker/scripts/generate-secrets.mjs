@@ -4,8 +4,9 @@
 //   node scripts/generate-secrets.mjs --dev               write .dev.vars for `wrangler dev`
 //   node scripts/generate-secrets.mjs --env staging       upload to the staging Worker
 //   node scripts/generate-secrets.mjs --env production    upload to the production Worker
+//   node scripts/generate-secrets.mjs --print             print once, to paste into the dashboard
 //
-// Values are never printed. Run each deployed environment ONCE: rotating FAKE_SALT_SECRET changes
+// Apart from --print, values are never printed. Run each deployed environment ONCE: rotating FAKE_SALT_SECRET changes
 // every fake prelogin salt (an observer could then tell real accounts from fake ones), and rotating
 // JWT_PRIVATE_JWK logs everyone out.
 import { execFileSync } from "node:child_process";
@@ -31,7 +32,13 @@ async function generate() {
 const args = process.argv.slice(2);
 const secrets = await generate();
 
-if (args.includes("--dev")) {
+if (args.includes("--print")) {
+  console.log(
+    "Paste each value into Workers → veilauth → Settings → Variables and Secrets (type: Secret).",
+  );
+  console.log("Do not save this output anywhere else.\n");
+  for (const [name, value] of Object.entries(secrets)) console.log(`${name}\n${value}\n`);
+} else if (args.includes("--dev")) {
   if (existsSync(".dev.vars") && !args.includes("--force")) {
     console.error(".dev.vars already exists (use --force to overwrite)");
     process.exit(1);
@@ -43,7 +50,7 @@ if (args.includes("--dev")) {
   const i = args.indexOf("--env");
   const env = i === -1 ? undefined : args[i + 1];
   if (env !== "staging" && env !== "production") {
-    console.error("usage: generate-secrets.mjs --dev | --env staging|production");
+    console.error("usage: generate-secrets.mjs --dev | --print | --env staging|production");
     process.exit(1);
   }
   if (env === "staging") secrets.TURNSTILE_SECRET_KEY = TURNSTILE_TEST_SECRET;
