@@ -32,6 +32,12 @@ public class VaultKey private constructor(
         value: JsonElement,
     ): String = encryptItem(key, ItemRef(userId, id, kind), value)
 
+    /**
+     * A copy of the raw key, only for wrapping it under another key (the Android biometric
+     * Keystore key). The caller wipes it.
+     */
+    public fun exportRawForWrapping(): ByteArray = key.encoded
+
     override fun toString(): String = "VaultKey(userId=$userId)"
 
     public companion object {

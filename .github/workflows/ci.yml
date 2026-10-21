@@ -76,11 +76,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: Kotlin core modules against spec/test-vectors.json
         run: apps/android/scripts/gradle-ci.sh -Pveilauth.coreOnly=true test
+      - name: App unit tests, debug APKs and lint
+        run: apps/android/scripts/gradle-ci.sh :app:testGithubDebugUnitTest :app:assembleGithubDebug :app:assembleFdroidDebug :app:lintGithubDebug
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: android-test-reports
-          path: apps/android/**/build/reports/tests
+          path: |
+            apps/android/**/build/reports/tests
+            apps/android/app/build/reports/lint-results-*.html
           retention-days: 7
 
   secrets:
