@@ -36,17 +36,24 @@ what `spec/crypto.md` §7 lists.
 
 - **Malicious web JS.** Whoever controls the Worker or the deploy pipeline can serve modified
   JavaScript that exfiltrates the password at the next unlock. This applies to all browser-based
-  zero-knowledge apps. Mitigations: strict CSP + Trusted Types, SRI on every asset, reproducible
-  builds with published hashes, automatic PWA updates that never apply silently while unlocked
-  (D-018). Users at high risk should use the Android app, whose code only changes through APKs
+  zero-knowledge apps. Mitigations: strict CSP + Trusted Types with no third-party script
+  origins (Turnstile is isolated in its own frame, D-036), SRI on built assets, published
+  `SHA256SUMS` for every web file (D-041), automatic PWA updates that never apply silently while
+  unlocked (D-018). Users at high risk should use the Android app, whose code only changes through APKs
   signed with the release key (D-019).
 - **Rollback of single items.** The server can return an older ciphertext of the same item
   (an older revision of the same id/kind). AAD cannot bind the server-assigned revision. Clients
-  keep the highest revision they have seen per item and flag regressions.
+  keep the highest revision they have seen per item, ignore older ones and warn the user (the web
+  client does this in `LocalStore.applyPull`).
 - **Metadata.** The server sees the number of items, their kinds, approximate sizes
   (256-byte buckets), edit times and device count.
 - **Lost password + lost recovery key = lost data.** This follows from the design and the UI
   says so plainly at signup.
+
+- **Web session at rest.** A browser profile holds the refresh token and the wrapped vault key
+  in IndexedDB (D-038). Someone with that profile can sync ciphertext but still needs the master
+  password to decrypt it, and the server revokes the session on password change or from the
+  devices list.
 
 ## Not protected
 

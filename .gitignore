@@ -14,3 +14,7 @@ apps/android/local.properties
 *.keystore
 *.jks
 __pycache__/
+
+# Playwright
+test-results/
+playwright-report/

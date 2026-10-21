@@ -8,9 +8,10 @@
   "compatibility_date": "2026-10-01",
   "observability": { "enabled": true },
   "minify": true,
-  // The Worker serves the web client; only /api/* runs Worker code first (same origin, no CORS).
+  // The Worker serves the web client (apps/web, built into ../web/dist); only /api/* runs Worker
+  // code first (same origin, no CORS). Security headers for the app are in apps/web/public/_headers.
   "assets": {
-    "directory": "./public",
+    "directory": "../web/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],

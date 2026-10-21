@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Post-deploy smoke test: the API answers, headers are set, prelogin works. Usage: smoke-test.sh https://host
+# Post-deploy smoke test: the API answers, headers are set, prelogin works, the web app is served
+# with its strict CSP. Usage: smoke-test.sh https://host
 set -euo pipefail
 base="${1%/}"
 
@@ -17,5 +18,11 @@ echo "$prelogin" | grep -q '"alg":"argon2id"' || { echo "prelogin failed"; exit 
 
 status=$(curl -s -o /dev/null -w '%{http_code}' "$base/api/v1/devices")
 [ "$status" = "401" ] || { echo "unauthenticated /devices returned $status"; exit 1; }
+
+page_headers=$(curl -fsS -D - -o /tmp/veilauth-index.html "$base/")
+echo "$page_headers" | grep -qi "^content-security-policy:.*require-trusted-types-for" \
+  || { echo "web app CSP missing"; exit 1; }
+grep -q 'integrity="sha384-' /tmp/veilauth-index.html || { echo "web app has no SRI"; exit 1; }
+curl -fsS -o /dev/null "$base/sw.js" || { echo "service worker missing"; exit 1; }
 
 echo "smoke test passed for $base"

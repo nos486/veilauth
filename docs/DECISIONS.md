@@ -256,3 +256,87 @@ a hard error, never a silent bypass.
 
 The Worker logs only through `logError(event, { name, path })`: error class names and route
 patterns. ESLint forbids `console` everywhere else.
+
+## D-035 CSP allows `'wasm-unsafe-eval'`
+
+Argon2id runs in WebAssembly (hash-wasm, spec §4.4), and browsers only compile WebAssembly when
+the CSP allows `'wasm-unsafe-eval'`. That keyword permits WebAssembly compilation only: `eval`,
+`new Function` and string timers stay blocked. Everything else matches the spec's policy
+(`default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'`). Zod's
+`new Function` feature probe is switched off (`jitless`) before any schema loads, so the
+console shows no violations (the E2E test asserts this).
+
+## D-036 Turnstile runs in its own same-origin frame
+
+Turnstile needs a script from `challenges.cloudflare.com`. Instead of adding that origin to the
+app's CSP, the widget lives in `/turnstile` (a static page with its own CSP that allows only
+Cloudflare's challenge origin, and only frameable by us). It hands the token to the app with
+`postMessage`; the app checks the message's origin and source frame. The vault page never loads
+third-party code, and the widget is only shown on sign-up and on log-in after
+`TURNSTILE_REQUIRED`.
+
+## D-037 Native `<dialog>` instead of Radix UI
+
+Radix Dialog's scroll lock injects a `<style>` element at runtime, which `style-src 'self'`
+blocks. The more secure option is to keep the strict CSP and use the native `<dialog>` element,
+which gives focus trapping, Escape-to-close and the modal backdrop without injected styles.
+Tailwind is used as specified.
+
+## D-038 Web session storage
+
+IndexedDB holds only what the server holds: item ids, revisions, envelopes, the wrapped vault
+key and the KDF parameters, plus the refresh token and pending (encrypted) local changes. The
+vault key exists only inside the crypto Web Worker as a non-extractable `CryptoKey`; reloading
+or closing the tab locks the vault (spec §6 default). Unlock works offline from the cached wrap;
+if that fails it falls back to an online log-in (password changed elsewhere). Refreshes are
+serialised across tabs with the Web Locks API and always use the latest stored refresh token, so
+two tabs can never present a rotated token (which would revoke the session family, D-032). When
+the server ends a session, the encrypted cache and unsynced edits are kept for the same user's
+next log-in and wiped if a different account logs in. "Stay unlocked on this device" is not
+offered yet (Phase 5 with passkey PRF).
+
+## D-039 Conflict resolution details
+
+Push conflicts (spec §5.3) are resolved without ever dropping a token:
+
+- token edited on both sides: the server copy stays, the local version is saved as a new token
+  whose account name ends in " (conflicted copy)";
+- HOTP with the same secret on both sides: one token with the higher counter;
+- local delete vs remote edit: the edit wins (the token survives);
+- local edit vs remote delete: the local edit is pushed again on top of the tombstone;
+- folders and settings: the server copy wins;
+- identical content: the local change is dropped.
+
+## D-040 Trusted Types default policy
+
+The CSP sets `require-trusted-types-for 'script'; trusted-types default`. The only policy is
+`default`, and it accepts same-origin script URLs (the crypto worker, the service worker,
+lazy chunks) and rejects every HTML or script string. The app never uses `innerHTML`; the
+service worker is generated with the Workbox runtime inlined so it needs no `importScripts`.
+
+## D-041 Subresource Integrity and published hashes
+
+A build plugin adds `integrity="sha384-…"` to every script and stylesheet tag in `index.html`
+after minification, and the post-build script verifies those hashes and writes `SHA256SUMS` for
+every published file. Browsers cannot apply SRI to `new Worker()` or to lazily imported chunks,
+so those are covered by `SHA256SUMS`, which each GitHub Release prints in its notes.
+
+## D-042 Master password strength
+
+Sign-up and password change require at least 10 characters and a zxcvbn score of 3 or more
+(zxcvbn-ts, loaded only on those screens), with the e-mail as a user input to penalise.
+
+## D-043 Device names are not sent yet
+
+`device.nameEnc` is optional in the API. The web client sends `null` for now: a name encrypted
+with the vault key cannot be produced at log-in time (the vault key is unwrapped after the
+server answers), and naming devices is a Phase 4 settings feature.
+
+## D-044 Phase 2 scope
+
+Phase 2 ships what spec §8.3 lists for the web MVP (sign-up with recovery key, log-in, unlock,
+vault CRUD, QR/URI/manual add, sync, auto-lock) plus the pieces the §8.1 E2E needs or that cost
+little on top of the existing API: trash, password change, device list/revoke and account
+deletion. Importers, encrypted export, folders, icons, reordering and the recovery flow UI stay
+in Phase 4 as planned. The web auto-lock offers 30 s / 1 / 5 / 15 min; "never" is
+Android-with-biometric only (spec §2).

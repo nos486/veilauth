@@ -71,7 +71,8 @@ jobs:
         run: |
           mkdir -p release
           (cd apps/worker && npx wrangler deploy --dry-run --env production --outdir ../../release/worker-bundle >/dev/null)
-          tar -C apps/worker -czf release/web-assets.tar.gz public
+          tar -C apps/web -czf release/web-assets.tar.gz dist
+          cp apps/web/dist/SHA256SUMS release/web-SHA256SUMS
           tar -C release -czf release/worker-bundle.tar.gz worker-bundle && rm -rf release/worker-bundle
           cp spec/api.openapi.yaml spec/test-vectors.json release/
           (cd release && sha256sum * > SHA256SUMS)
@@ -86,6 +87,11 @@ jobs:
             echo "### SHA-256"
             echo '```'
             cat release/SHA256SUMS
+            echo '```'
+            echo
+            echo "### Web app files (compare with what your browser is served)"
+            echo '```'
+            cat release/web-SHA256SUMS
             echo '```'
           } > notes.md
           gh release create "$GITHUB_REF_NAME" release/* --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
