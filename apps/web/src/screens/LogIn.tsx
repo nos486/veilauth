@@ -21,6 +21,10 @@ export function LogIn() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (needsCheck && siteKey !== null && checkToken === null) {
+      setError(t("error.TURNSTILE_REQUIRED"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -65,11 +69,7 @@ export function LogIn() {
           <Turnstile siteKey={siteKey} action="login" onToken={setCheckToken} />
         ) : null}
         <ErrorText>{error}</ErrorText>
-        <Button
-          type="submit"
-          busy={busy}
-          disabled={needsCheck && siteKey !== null && checkToken === null}
-        >
+        <Button type="submit" busy={busy}>
           {busy ? t("login.working") : t("login.submit")}
         </Button>
         <Button

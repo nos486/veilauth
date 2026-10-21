@@ -7,7 +7,7 @@ import { Turnstile } from "../components/Turnstile";
 import { Button, Card, ErrorText, PasswordField, TextField } from "../components/ui";
 import { t } from "../i18n";
 import { errorMessage } from "../lib/errors";
-import { MIN_LENGTH, MIN_SCORE } from "../lib/strength";
+import { loadStrengthChecker, MIN_LENGTH, MIN_SCORE } from "../lib/strength";
 import { useApp } from "../store/app";
 
 type Step = "form" | "words" | "confirm";
@@ -92,23 +92,39 @@ function SignUpForm({
     useMemo(() => [email, "veilauth"], [email]),
   );
 
-  const tooWeak = password.length < MIN_LENGTH || (strength?.score ?? 0) < MIN_SCORE;
   const mismatch = confirm !== "" && confirm !== password;
 
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (tooWeak) {
+    // Read the fields themselves: password managers can fill them without a change event.
+    const form = new FormData(e.currentTarget);
+    const field = (name: string) => {
+      const v = form.get(name);
+      return typeof v === "string" ? v : "";
+    };
+    const mail = field("email").trim();
+    const pw = field("password");
+    const pw2 = field("confirm");
+    setEmail(mail);
+    setPassword(pw);
+    setConfirm(pw2);
+    if (!understood) {
+      setError(t("signup.mustUnderstand"));
+      return;
+    }
+    const check = await loadStrengthChecker();
+    if (pw.length < MIN_LENGTH || check(pw, [mail, "veilauth"]).score < MIN_SCORE) {
       setError(t("signup.tooWeak", { min: MIN_LENGTH }));
       return;
     }
-    if (password !== confirm) {
+    if (pw !== pw2) {
       setError(t("signup.mismatch"));
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      onDone(email.trim(), await controller.beginSignup(email, password));
+      onDone(mail, await controller.beginSignup(mail, pw));
     } catch (err: unknown) {
       setError(errorMessage(err));
       setBusy(false);
@@ -121,6 +137,7 @@ function SignUpForm({
         <TextField
           label={t("field.email")}
           type="email"
+          name="email"
           autoComplete="username"
           required
           value={email}
@@ -130,6 +147,7 @@ function SignUpForm({
         />
         <PasswordField
           label={t("field.masterPassword")}
+          name="password"
           autoComplete="new-password"
           required
           minLength={MIN_LENGTH}
@@ -140,6 +158,7 @@ function SignUpForm({
         />
         <PasswordStrengthMeter strength={strength} />
         <PasswordField
+          name="confirm"
           label={t("field.confirmPassword")}
           autoComplete="new-password"
           required
@@ -165,7 +184,7 @@ function SignUpForm({
           </label>
         </div>
         <ErrorText>{error}</ErrorText>
-        <Button type="submit" busy={busy} disabled={!understood || tooWeak || password !== confirm}>
+        <Button type="submit" busy={busy}>
           {busy ? t("signup.deriving") : t("signup.continue")}
         </Button>
         <Button variant="ghost" onClick={onBack}>
@@ -291,6 +310,10 @@ function ConfirmWords({
       setError(t("confirm.wrongWords"));
       return;
     }
+    if (siteKey !== null && checkToken === null) {
+      setError(t("error.TURNSTILE_REQUIRED"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -324,7 +347,7 @@ function ConfirmWords({
         ))}
         {siteKey ? <Turnstile siteKey={siteKey} action="register" onToken={setCheckToken} /> : null}
         <ErrorText>{error}</ErrorText>
-        <Button type="submit" busy={busy} disabled={siteKey !== null && checkToken === null}>
+        <Button type="submit" busy={busy}>
           {busy ? t("confirm.creating") : t("confirm.create")}
         </Button>
         {emailTaken ? (

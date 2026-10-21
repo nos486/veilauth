@@ -44,6 +44,7 @@
   "signup.tooWeak": "Choose a stronger password: at least {min} characters that are hard to guess.",
   "signup.warningTitle": "There is no password reset.",
   "signup.warningBody": "Your vault is encrypted with your master password. Next you will get a recovery key. If you lose both, your codes are gone for good.",
+  "signup.mustUnderstand": "Tick the box to confirm you understand there is no password reset.",
   "signup.understand": "I understand that nobody can recover my data without my password or recovery key.",
 
   "strength.empty": "Use a long passphrase you don't use anywhere else.",
