@@ -27,7 +27,7 @@ jobs:
       - name: Skip when Cloudflare is not configured
         if: env.CLOUDFLARE_API_TOKEN == ''
         run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; skipping production deploy."
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: env.CLOUDFLARE_API_TOKEN != ''
       - uses: pnpm/action-setup@v4
         if: env.CLOUDFLARE_API_TOKEN != ''
@@ -102,7 +102,7 @@ jobs:
           else
             echo "built=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: steps.check.outputs.built == 'true'
       - uses: actions/setup-java@v5
         if: steps.check.outputs.built == 'true'
@@ -150,7 +150,7 @@ jobs:
     if: always() && startsWith(github.ref, 'refs/tags/') && needs.deploy-production.result == 'success' && needs.android-release.result == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
