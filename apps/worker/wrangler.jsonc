@@ -50,7 +50,8 @@
       "name": "veilauth",
       "vars": {
         "ENVIRONMENT": "production",
-        "TURNSTILE_SITE_KEY": "REPLACE_WITH_TURNSTILE_SITE_KEY",
+        // Optional (D-049): a Turnstile site key protects sign-up; empty turns it off.
+        "TURNSTILE_SITE_KEY": "",
       },
       "d1_databases": [
         {

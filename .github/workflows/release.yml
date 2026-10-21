@@ -41,15 +41,23 @@ jobs:
       - name: Configure Turnstile
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: apps/worker
-        # Production refuses sign-ups without Turnstile (docs/DECISIONS.md D-033). See SELF_HOSTING.md section C.
+        # Optional (docs/DECISIONS.md D-049): set both to protect sign-up, or neither to leave it off.
         run: |
+          if [ -z "$TURNSTILE_SITE_KEY" ] && [ -z "$TURNSTILE_SECRET_KEY" ]; then
+            echo "::notice::Turnstile is off in production (no TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY)."
+            exit 0
+          fi
           if [ -z "$TURNSTILE_SITE_KEY" ] || [ -z "$TURNSTILE_SECRET_KEY" ]; then
-            echo "::error::Set the TURNSTILE_SITE_KEY variable and the TURNSTILE_SECRET_KEY secret (docs/SELF_HOSTING.md, section C)."
+            echo "::error::Set both the TURNSTILE_SITE_KEY variable and the TURNSTILE_SECRET_KEY secret, or neither (docs/SELF_HOSTING.md, section C)."
             exit 1
           fi
-          if grep -q REPLACE_WITH_TURNSTILE_SITE_KEY wrangler.jsonc; then
-            sed -i "s/REPLACE_WITH_TURNSTILE_SITE_KEY/${TURNSTILE_SITE_KEY}/" wrangler.jsonc
-          fi
+          node -e '
+            const fs = require("fs");
+            const s = fs.readFileSync("wrangler.jsonc", "utf8");
+            const marker = /("ENVIRONMENT": "production",[\s\S]*?"TURNSTILE_SITE_KEY": )""/;
+            if (!marker.test(s)) throw new Error("production TURNSTILE_SITE_KEY not found in wrangler.jsonc");
+            fs.writeFileSync("wrangler.jsonc", s.replace(marker, (_, head) => head + JSON.stringify(process.env.TURNSTILE_SITE_KEY)));
+          '
       - name: Resolve D1 database id
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: apps/worker
@@ -69,7 +77,7 @@ jobs:
         # First deploy only: generates JWT/HMAC keys inside Cloudflare; existing secrets are never replaced.
         run: node scripts/generate-secrets.mjs --env production --missing-only
       - name: Set the Turnstile secret
-        if: env.CLOUDFLARE_API_TOKEN != ''
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.TURNSTILE_SECRET_KEY != ''
         working-directory: apps/worker
         run: printf '%s' "$TURNSTILE_SECRET_KEY" | npx wrangler secret put TURNSTILE_SECRET_KEY --env production
       - name: Smoke test

@@ -3,12 +3,12 @@ import { ApiError } from "./errors.js";
 
 const VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
+/** Turnstile is optional in every environment (D-049): an empty site key turns it off. */
 export function turnstileEnabled(env: Env): boolean {
-  if (env.ENVIRONMENT !== "development") return true;
   return env.TURNSTILE_SITE_KEY !== "";
 }
 
-/** Verifies a Turnstile token. Disabled only in development without a site key. */
+/** Verifies a Turnstile token. A no-op when no site key is configured. */
 export async function requireTurnstile(
   env: Env,
   token: string | undefined,

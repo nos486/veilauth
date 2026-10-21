@@ -4,7 +4,7 @@ export interface Env {
   /** Workers Rate Limiting binding: 5 requests / 60 s per key (login, prelogin, recovery) */
   RL_AUTH: RateLimit;
   ENVIRONMENT: "development" | "staging" | "production";
-  /** Public Turnstile site key; empty disables Turnstile (development only) */
+  /** Public Turnstile site key; empty disables Turnstile (D-049) */
   TURNSTILE_SITE_KEY: string;
   // Secrets (wrangler secret put / .dev.vars)
   TURNSTILE_SECRET_KEY?: string;

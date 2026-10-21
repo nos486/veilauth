@@ -124,7 +124,7 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 - [x] Auth: prelogin (fake salt), register, login, refresh rotation with reuse detection, logout, change password, two-step recovery, account deletion
 - [x] Sync: revisioned pull with tombstones, batched push with per-item conflicts, race-safe revision bump, 1000 items / 8 KB / 200 per push limits, purge horizon → full resync
 - [x] Devices list/revoke, `/time`, `/config`
-- [x] Rate Limiting binding, D1 registration limit, per-(e-mail, IP) lockout, Turnstile escalation
+- [x] Rate Limiting binding, D1 registration limit, per-(e-mail, IP) lockout, Turnstile escalation (optional, D-049)
 - [x] Security headers on every API response, JSON errors with stable codes, no input echo, allowlisted logging
 - [x] Daily cron: tombstones (90 d), audit log (180 d), expired sessions/counters
 - [x] `spec/api.openapi.yaml` generated from Zod; CI fails on drift

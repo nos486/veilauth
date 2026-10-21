@@ -196,8 +196,8 @@ lifetime. It costs one indexed D1 read per request.
 ## D-025 Registration limit in D1
 
 The Workers Rate Limiting binding only supports 10 s and 60 s windows, so "3 registrations per
-hour per IP" is a fixed-window counter in D1. Turnstile is always required for registration
-outside development.
+hour per IP" is a fixed-window counter in D1. Turnstile, when configured, is also required for
+registration (optional since D-049).
 
 ## D-026 Recovery is two calls and the recovery key is single-use
 
@@ -250,7 +250,7 @@ a conditional update on the old hash, so two concurrent refreshes cannot both wi
 
 Development: off when `TURNSTILE_SITE_KEY` is empty. Staging: Cloudflare's always-pass test
 keys, so E2E tests can register. Production: real keys. A missing secret outside development is
-a hard error, never a silent bypass.
+a hard error, never a silent bypass. **Amended by D-049:** production may run without Turnstile.
 
 ## D-034 Logging allowlist
 
@@ -396,3 +396,13 @@ is checked by SHA-256 and signing certificate instead (D-019).
 - `versionCode = major·1 000 000 + minor·1 000 + patch`, taken from the tag.
 - QR decoding uses ML Kit's bundled model (on-device, no Play Services). It is not free software,
   so the F-Droid build will need a ZXing-based scanner before submission (Phase 5).
+
+## D-049 Turnstile is optional in production
+
+Sina chose to run production without Turnstile for now. An empty `TURNSTILE_SITE_KEY` turns it
+off in every environment, not only development; `/config` then returns no site key, the web app
+shows no widget, and sign-up and the log-in escalation after three failures skip the check.
+Sign-up stays limited to 3 accounts per hour per IP (D-025) and log-in by the Rate Limiting
+binding plus the per-account lockout (D-024), so automated sign-ups are slowed, not blocked.
+Setting a site key turns Turnstile back on; a site key without a secret is still a hard error
+(D-033). The release workflow fills the site key only when both GitHub settings are present.

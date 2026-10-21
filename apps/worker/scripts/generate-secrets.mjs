@@ -77,7 +77,7 @@ if (args.includes("--print")) {
   console.log(`uploaded ${Object.keys(secrets).join(", ")} to ${env}`);
   if (env === "production" && !args.includes("--missing-only")) {
     console.log(
-      "now run: npx wrangler secret put TURNSTILE_SECRET_KEY --env production   (from the Turnstile dashboard)",
+      "optional, with Turnstile on: npx wrangler secret put TURNSTILE_SECRET_KEY --env production",
     );
   }
 }

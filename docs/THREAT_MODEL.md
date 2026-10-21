@@ -29,7 +29,7 @@ what `spec/crypto.md` §7 lists.
 | Account enumeration via prelogin   | Deterministic fake salt plus default params for unknown e-mails, same code path. Rate limited.                                                                                              |
 | Network attacker                   | TLS (HSTS) everywhere; Android pins Cloudflare intermediates with a backup pin. Even with TLS broken, only ciphertext and `authKey` are visible, and `authKey` does not decrypt anything.   |
 | Stolen Android phone, locked       | Vault key is wrapped by a Keystore key that requires Class 3 biometrics (StrongBox if available) and is invalidated on new enrolment. The cache holds ciphertext only. `allowBackup=false`. |
-| Online password guessing           | Rate limits, exponential lockout, Turnstile after 3 failures.                                                                                                                               |
+| Online password guessing           | Rate limits, exponential lockout, Turnstile after 3 failures when configured (optional, D-049).                                                                                             |
 | Stolen refresh token               | Rotation with reuse detection revokes the whole token family. A password change rotates `security_stamp`, which kills every session.                                                        |
 
 ## Known limitations

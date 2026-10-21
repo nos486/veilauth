@@ -203,7 +203,13 @@ describe("Turnstile", () => {
     );
   });
 
-  it("refuses to run in production without a secret", async () => {
+  it("is off in production when no site key is configured", async () => {
+    await expect(
+      requireTurnstile({ ...prodEnv, TURNSTILE_SITE_KEY: "" }, undefined, "1.2.3.4"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("refuses to run with a site key but no secret", async () => {
     await expect(
       requireTurnstile({ ...prodEnv, TURNSTILE_SECRET_KEY: "" }, "tok", "1.2.3.4"),
     ).rejects.toThrow();

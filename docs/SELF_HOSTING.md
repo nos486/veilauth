@@ -2,7 +2,7 @@
 
 veilauth runs entirely on Cloudflare: one **Worker** serves the API (`/api/v1/*`) and the web
 app's static files from the same origin, **D1** stores the encrypted vault, and the **Rate
-Limiting** binding plus **Turnstile** protect the login endpoints. Everything fits in the Workers
+Limiting** binding (plus **Turnstile**, if you turn it on) protects the login endpoints. Everything fits in the Workers
 Free plan for personal use. The Workers Paid plan ($5/month) gives you more D1 and CPU headroom.
 
 There are three ways to deploy:
@@ -52,7 +52,11 @@ database ids are not secret.
 To do it by hand instead, run `npx wrangler d1 create veilauth-production` and paste the
 `database_id` it prints into `env.production.d1_databases[0].database_id`.
 
-### 3. Create a Turnstile widget (production)
+### 3. Create a Turnstile widget (production, optional)
+
+Turnstile is Cloudflare's CAPTCHA replacement. It stops scripts from mass-creating accounts. It
+is off when the site key is empty (the default); skip this step and the Turnstile line in step 4
+to run without it (D-049).
 
 1. Dashboard → **Turnstile** → **Add widget**.
 2. Hostname: the domain you will serve veilauth on (for example `vault.example.com`, or
@@ -68,7 +72,7 @@ Staging uses Cloudflare's always-pass test keys, so automated tests can register
 ```sh
 node scripts/generate-secrets.mjs --env staging
 node scripts/generate-secrets.mjs --env production
-npx wrangler secret put TURNSTILE_SECRET_KEY --env production   # paste the Turnstile secret key
+npx wrangler secret put TURNSTILE_SECRET_KEY --env production   # only with Turnstile on
 ```
 
 | Secret                 | What it is                                                                           |
@@ -76,7 +80,7 @@ npx wrangler secret put TURNSTILE_SECRET_KEY --env production   # paste the Turn
 | `JWT_PRIVATE_JWK`      | Ed25519 private key that signs 15-minute access tokens                               |
 | `FAKE_SALT_SECRET`     | HMAC key for fake prelogin salts (prevents account enumeration)                      |
 | `IP_HASH_SECRET`       | HMAC key that pseudonymises IPs and e-mails in the audit log and rate-limit counters |
-| `TURNSTILE_SECRET_KEY` | Turnstile server-side secret                                                         |
+| `TURNSTILE_SECRET_KEY` | Turnstile server-side secret (only with Turnstile on)                                |
 
 To paste the secrets into the dashboard yourself instead, run
 `node scripts/generate-secrets.mjs --print`.
@@ -116,16 +120,16 @@ everything in the browser. The only local step is generating the keys once.
 Dashboard → **Storage & Databases** → **D1 SQL Database** → **Create** → name
 `veilauth-production` → copy the **Database ID**.
 
-### B2. Create a Turnstile widget
+### B2. Create a Turnstile widget (optional)
 
-Same as [step 3](#3-create-a-turnstile-widget-production). Keep the site key and the secret key.
+Skip this to run without Turnstile. Otherwise, same as [step 3](#3-create-a-turnstile-widget-production). Keep the site key and the secret key.
 
 ### B3. Put the ids in `wrangler.jsonc` (on GitHub)
 
 Open `apps/worker/wrangler.jsonc` on GitHub → ✏️ edit:
 
 - replace `REPLACE_WITH_PRODUCTION_D1_ID` with the Database ID from B1;
-- replace `REPLACE_WITH_TURNSTILE_SITE_KEY` with the Turnstile site key.
+- with Turnstile: put the site key in `env.production.vars.TURNSTILE_SITE_KEY` (empty = off).
 
 **Commit changes.** Neither value is secret.
 
@@ -163,7 +167,7 @@ Worker `veilauth` → **Settings** → **Variables and Secrets** → **Add**. Se
 **Secret** for each of these:
 
 - `JWT_PRIVATE_JWK`, `FAKE_SALT_SECRET`, `IP_HASH_SECRET` (from B4)
-- `TURNSTILE_SECRET_KEY` (from B2)
+- `TURNSTILE_SECRET_KEY` (from B2, only with Turnstile on)
 
 Then click **Deploy**.
 
@@ -199,8 +203,8 @@ Set these in GitHub → **Settings** → **Secrets and variables** → **Actions
 | `CLOUDFLARE_ACCOUNT_ID` | secret   | from `wrangler whoami`                                                                                                                        |
 | `STAGING_URL`           | variable | e.g. `https://veilauth-staging.<subdomain>.workers.dev`                                                                                       |
 | `PRODUCTION_URL`        | variable | e.g. `https://vault.example.com`                                                                                                              |
-| `TURNSTILE_SITE_KEY`    | variable | site key of your Turnstile widget ([step 3](#3-create-a-turnstile-widget-production)); hostname = your production domain                      |
-| `TURNSTILE_SECRET_KEY`  | secret   | secret key of the same widget                                                                                                                 |
+| `TURNSTILE_SITE_KEY`    | variable | optional: site key of your Turnstile widget ([step 3](#3-create-a-turnstile-widget-production-optional)); hostname = your production domain   |
+| `TURNSTILE_SECRET_KEY`  | secret   | optional: secret key of the same widget (set both or neither)                                                                                 |
 
 Then create a GitHub **environment** called `production` (Settings → Environments) and add
 yourself as a required reviewer, so every production deploy waits for your approval.
@@ -219,7 +223,8 @@ the D1 database if it is missing (and fills its id into its own copy of `wrangle
 generates any missing `JWT_PRIVATE_JWK`, `FAKE_SALT_SECRET` and `IP_HASH_SECRET` inside
 Cloudflare. Existing secrets are never replaced. For production, the release workflow also
 writes `TURNSTILE_SITE_KEY` into its copy of `wrangler.jsonc` and sets `TURNSTILE_SECRET_KEY` in
-Cloudflare, and stops with an error if either is missing.
+Cloudflare when both are set. With neither, production runs without Turnstile; with only one,
+the workflow stops with an error.
 
 To redeploy production from `main` without a new release, open **Actions** → **Release** →
 **Run workflow**. Only a tag creates a GitHub Release.
@@ -294,9 +299,9 @@ pnpm db:migrate:local
 pnpm dev                                  # http://localhost:8787
 ```
 
-Turnstile is off in local development (`ENVIRONMENT=development` with an empty site key). It is
-always on in staging and production. The Worker refuses Turnstile-protected requests if the
-secret is missing.
+Turnstile is off whenever the site key is empty, as in local development and (by default)
+production. Staging uses Cloudflare's always-pass test keys. With a site key set, the Worker
+refuses Turnstile-protected requests if the secret is missing.
 
 ## Operations
 
