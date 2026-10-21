@@ -340,3 +340,26 @@ little on top of the existing API: trash, password change, device list/revoke an
 deletion. Importers, encrypted export, folders, icons, reordering and the recovery flow UI stay
 in Phase 4 as planned. The web auto-lock offers 30 s / 1 / 5 / 15 min; "never" is
 Android-with-biometric only (spec §2).
+
+## D-045 Android crypto library: BouncyCastle
+
+spec/crypto.md §1 names libsodium/argon2kt for Argon2id and Tink for HKDF on Android. The Kotlin
+core (`apps/android/core/crypto`) uses BouncyCastle's lightweight API for both
+(`Argon2BytesGenerator`, `HKDFBytesGenerator`) instead. The primitives are unchanged; only the
+library differs. Reasons: it is pure JVM, so the exact code that ships in the app is the code
+that runs `spec/test-vectors.json` on every CI run (no native library that only exists on a
+device); one well-reviewed dependency replaces two; and Tink's JVM and Android artifacts would
+otherwise need swapping per build. AES-GCM, HMAC and SHA-256 stay on `javax.crypto` /
+`java.security`. Cost: pure-JVM Argon2id with 64 MiB is slower than native code, roughly 1–3 s
+on a mid-range phone, which only happens at log-in and password unlock.
+
+## D-046 Android module layout
+
+Everything that can run on a plain JVM lives in Gradle modules without the Android plugin, so it
+is built and tested anywhere: `:core:otp`, `:core:crypto` (both checked against
+`spec/test-vectors.json`), `:core:api` (models generated from `spec/api.openapi.yaml` by
+`packages/shared/scripts/gen-kotlin.mjs`, with a CI drift check, plus the OkHttp client) and
+`:core:vault` (log-in, unlock, offline store semantics, sync and conflict rules, ported from the
+web client and tested against a fake server). `:app` holds only Android glue: Room, Keystore,
+biometrics, camera, WorkManager, UI and the updater. `-Pveilauth.coreOnly=true` builds the core
+modules without Google Maven.

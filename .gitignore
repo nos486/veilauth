@@ -11,6 +11,7 @@ apps/android/.gradle/
 apps/android/build/
 apps/android/**/build/
 apps/android/local.properties
+apps/android/.kotlin/
 *.keystore
 *.jks
 __pycache__/

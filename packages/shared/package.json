@@ -17,7 +17,9 @@
     "lint": "eslint src test",
     "test": "vitest run",
     "openapi": "tsc -p tsconfig.build.json && node dist/generate-openapi.js",
-    "openapi:check": "tsc -p tsconfig.build.json && node dist/generate-openapi.js --check"
+    "openapi:check": "tsc -p tsconfig.build.json && node dist/generate-openapi.js --check",
+    "kotlin": "node scripts/gen-kotlin.mjs",
+    "kotlin:check": "node scripts/gen-kotlin.mjs --check"
   },
   "dependencies": {
     "yaml": "^2.9.1",
