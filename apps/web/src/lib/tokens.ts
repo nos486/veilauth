@@ -56,6 +56,27 @@ export function isDuplicate(candidate: OtpParams, existing: readonly VaultToken[
   return existing.some((t) => t.value.trashedAt === null && key(t.value) === k);
 }
 
+/**
+ * The backed-up tokens that are not in the vault yet (nor repeated in the backup), as new items
+ * with fresh ids. Folders are not part of a backup yet, so folder ids are cleared; trashed
+ * tokens come back out of the trash.
+ */
+export function tokensToRestore(
+  backup: readonly TokenItem[],
+  existing: readonly VaultToken[],
+  newId: () => string,
+): VaultToken[] {
+  const known = [...existing];
+  const fresh: VaultToken[] = [];
+  for (const value of backup) {
+    if (isDuplicate(otpParamsOf(value), known)) continue;
+    const token = { id: newId(), value: { ...value, folderId: null, trashedAt: null } };
+    fresh.push(token);
+    known.push(token);
+  }
+  return fresh;
+}
+
 /** Favorites first, then issuer and account, case-insensitively. */
 export function compareTokens(a: VaultToken, b: VaultToken): number {
   if (a.value.favorite !== b.value.favorite) return a.value.favorite ? -1 : 1;

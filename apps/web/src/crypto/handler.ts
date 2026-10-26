@@ -1,5 +1,7 @@
 import {
   createAccountKeys,
+  createBackup,
+  openBackup,
   CryptoError,
   decryptItem,
   DEFAULT_KDF_PARAMS,
@@ -43,6 +45,8 @@ export class CryptoHandler {
     decrypt: (r) => this.decrypt(r),
     encrypt: (r) => this.encrypt(r),
     changePassword: (r) => this.changePassword(r),
+    createBackup: async (r) => ({ file: await createBackup(r.password, r.contents) }),
+    openBackup: (r) => openBackup(r.password, r.file),
     lock: () => {
       this.lock();
       return Promise.resolve({ locked: true });

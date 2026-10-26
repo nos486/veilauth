@@ -10,7 +10,9 @@ import {
   matchesSearch,
   newTokenItem,
   parseScannedText,
+  tokensToRestore,
 } from "../src/lib/tokens";
+import { backupFileName } from "../src/screens/Backup";
 import { uuidv7 } from "../src/lib/uuid";
 import { sameOriginScriptUrl } from "../src/security/trusted-types";
 
@@ -101,6 +103,27 @@ describe("token helpers", () => {
     expect(isDuplicate(p, [a])).toBe(true);
     expect(isDuplicate({ ...p, account: "bob" }, [a])).toBe(false);
     expect(isDuplicate(p, [{ ...a, value: { ...a.value, trashedAt: 5 } }])).toBe(false);
+  });
+
+  it("restores only tokens not in the vault yet, once each, out of the trash and folders", () => {
+    const inVault = mk("GitHub", "alice");
+    const fromBackup = [
+      { ...inVault.value, notes: "same token, other notes" },
+      { ...mk("GitLab", "alice").value, folderId: uuidv7(), trashedAt: 9 },
+      mk("gitlab", "ALICE").value,
+    ];
+    let n = 0;
+    const fresh = tokensToRestore(fromBackup, [inVault], () => `id-${String(++n)}`);
+    expect(fresh).toEqual([
+      { id: "id-1", value: { ...fromBackup[1], folderId: null, trashedAt: null } },
+    ]);
+    expect(tokensToRestore(fromBackup, [], uuidv7)).toHaveLength(2);
+  });
+
+  it("names backup files by date", () => {
+    expect(backupFileName(new Date(Date.UTC(2026, 9, 26, 12)))).toBe(
+      "veilauth-backup-2026-10-26.json",
+    );
   });
 
   it("sorts favorites first, then by issuer and account; searches issuer, account and tags", () => {

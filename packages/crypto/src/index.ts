@@ -76,3 +76,12 @@ export {
 } from "./item.js";
 export { type FolderItem, type TokenItem, validateFolderItem, validateTokenItem } from "./token.js";
 export { createAccountKeys, type NewAccountKeys } from "./account.js";
+export {
+  BACKUP_FORMAT,
+  BACKUP_VERSION,
+  type BackupContents,
+  createBackup,
+  INFO_BACKUP,
+  MAX_BACKUP_TOKENS,
+  openBackup,
+} from "./backup.js";

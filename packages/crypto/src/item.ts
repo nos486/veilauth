@@ -10,9 +10,9 @@ export const MAX_PADDED_BYTES = 5888;
 export const MAX_BLOB_CHARS = 8192;
 
 /** u32be(len) ‖ data ‖ 0x00… up to the next multiple of 256 (spec/crypto.md §6.2). */
-export function padPlaintext(data: Uint8Array): Bytes {
+export function padPlaintext(data: Uint8Array, maxPadded: number = MAX_PADDED_BYTES): Bytes {
   const total = Math.ceil((4 + data.length) / PAD_BUCKET) * PAD_BUCKET;
-  if (total > MAX_PADDED_BYTES) throw new CryptoError("ITEM_TOO_LARGE");
+  if (total > maxPadded) throw new CryptoError("ITEM_TOO_LARGE");
   const out = new Uint8Array(total);
   new DataView(out.buffer).setUint32(0, data.length);
   out.set(data, 4);

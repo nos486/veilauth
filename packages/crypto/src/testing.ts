@@ -4,3 +4,4 @@
  */
 export { sealWithNonce } from "./envelope.js";
 export { encryptItemWithNonce } from "./item.js";
+export { createBackupWith } from "./backup.js";

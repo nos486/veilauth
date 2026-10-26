@@ -8,20 +8,12 @@ import {
   saveSettings,
 } from "../app/settings";
 import { PasswordStrengthMeter, usePasswordStrength } from "../components/PasswordStrength";
-import { Button, ErrorText, InfoText, Modal, Page, PasswordField } from "../components/ui";
+import { Button, ErrorText, InfoText, Modal, Page, PasswordField, Section } from "../components/ui";
 import { t } from "../i18n";
 import { errorMessage } from "../lib/errors";
 import { MIN_LENGTH, MIN_SCORE } from "../lib/strength";
 import { navigate, useApp } from "../store/app";
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3 rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-      <h2 className="text-base font-bold text-slate-900 dark:text-white">{title}</h2>
-      {children}
-    </section>
-  );
-}
+import { Backup } from "./Backup";
 
 export function Settings({
   onSettingsChanged,
@@ -76,6 +68,7 @@ export function Settings({
           </label>
           <p className="text-xs text-slate-600 dark:text-slate-400">{t("settings.lockHint")}</p>
         </Section>
+        <Backup />
         <Devices />
         <ChangePassword />
         <Section title={t("settings.account")}>

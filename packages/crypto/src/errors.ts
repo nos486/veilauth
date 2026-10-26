@@ -6,7 +6,8 @@ export type CryptoErrorCode =
   | "KDF_PARAMS_REJECTED"
   | "INVALID_MNEMONIC"
   | "INVALID_ITEM"
-  | "ITEM_TOO_LARGE";
+  | "ITEM_TOO_LARGE"
+  | "INVALID_BACKUP";
 
 /** Error with a stable code; never carries key material, plaintext or ciphertext. */
 export class CryptoError extends Error {

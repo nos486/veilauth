@@ -1,4 +1,4 @@
-import type { FolderItem, ItemKind, TokenItem } from "@zk2fa/crypto";
+import type { BackupContents, FolderItem, ItemKind, TokenItem } from "@zk2fa/crypto";
 
 /** KDF description as it travels over the API (salt is base64url). */
 export interface WireKdf {
@@ -71,6 +71,10 @@ export interface CryptoOps {
     };
     res: PasswordChangeKeys;
   };
+  /** Encrypts tokens into a backup file under a backup password; needs no vault key. */
+  createBackup: { req: { password: string; contents: BackupContents }; res: { file: string } };
+  /** Opens a backup file; the tokens are validated but not yet added to the vault. */
+  openBackup: { req: { password: string; file: string }; res: BackupContents };
   lock: { req: Record<string, never>; res: { locked: true } };
 }
 

@@ -17,6 +17,7 @@ import {
   mnemonicToRecoveryKey,
   normalizePassword,
   open,
+  openBackup,
   padPlaintext,
   recoveryKeyToMnemonic,
   toBase64Url,
@@ -29,7 +30,7 @@ import {
   validateTokenItem,
 } from "../src/index.js";
 import { computeAuthHash, fakeSalt, verifyAuthHash } from "../src/server.js";
-import { encryptItemWithNonce, sealWithNonce } from "../src/testing.js";
+import { createBackupWith, encryptItemWithNonce, sealWithNonce } from "../src/testing.js";
 import { hex, toHex, vectors } from "./vectors.js";
 
 async function exportRaw(key: CryptoKey): Promise<string> {
@@ -229,5 +230,29 @@ describe("KDF parameter policy", () => {
     await expect(deriveMasterKey("pw", salt, v.params, v.alg)).rejects.toMatchObject({
       code: "KDF_PARAMS_REJECTED",
     });
+  });
+});
+
+describe("encrypted backup", () => {
+  for (const v of vectors.backup.cases) {
+    describe(v.name, () => {
+      it("binds the salt into the AAD", () => {
+        expect(ctx.backup(hex(v.saltHex))).toBe(v.aad);
+      });
+
+      it("creates a byte-identical file with the fixed salt and nonce", async () => {
+        expect(
+          await createBackupWith(v.password, v.contents, hex(v.saltHex), hex(v.nonceHex)),
+        ).toBe(v.file);
+      });
+
+      it("opens to the original contents", async () => {
+        expect(await openBackup(v.password, v.file)).toEqual(v.contents);
+      });
+    });
+  }
+
+  it.each(vectors.backup.rejected)("rejects $name", async (v) => {
+    await expect(openBackup(v.password, v.file)).rejects.toMatchObject({ code: v.error });
   });
 });

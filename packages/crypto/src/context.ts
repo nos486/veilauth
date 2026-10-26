@@ -1,3 +1,4 @@
+import { toBase64Url } from "./encoding.js";
 import { CryptoError } from "./errors.js";
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -33,5 +34,9 @@ export const ctx = {
     assertId(userId);
     assertId(deviceId);
     return `zk2fa/v1/device|${userId}|${deviceId}`;
+  },
+  /** Not bound to a user, so a backup restores into any account. */
+  backup(salt: Uint8Array): string {
+    return `zk2fa/v1/backup|${toBase64Url(salt)}`;
   },
 } as const;

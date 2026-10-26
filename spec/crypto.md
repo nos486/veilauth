@@ -148,13 +148,13 @@ GCM key = 32-byte key (AES-256)
 - `ctx` strings are ASCII, built only from fixed prefixes, validated `id`s and the closed `kind`
   enum, so the separator `|` cannot be injected.
 
-| Blob                                 | Key                  | ctx                                                                               |
-| ------------------------------------ | -------------------- | --------------------------------------------------------------------------------- |
-| wrapped vault key                    | kek                  | `zk2fa/v1/vk\|{userId}`                                                           |
-| recovery-wrapped vault key           | recoveryKek          | `zk2fa/v1/rvk\|{userId}`                                                          |
-| vault item (token, folder, settings) | vaultKey             | `zk2fa/v1/item\|{userId}\|{itemId}\|{kind}`, kind ∈ `token`, `folder`, `settings` |
-| device name                          | vaultKey             | `zk2fa/v1/device\|{userId}\|{deviceId}`                                           |
-| encrypted backup export              | reserved for Phase 4 | `zk2fa/v1/backup\|…`                                                              |
+| Blob                                 | Key         | ctx                                                                               |
+| ------------------------------------ | ----------- | --------------------------------------------------------------------------------- |
+| wrapped vault key                    | kek         | `zk2fa/v1/vk\|{userId}`                                                           |
+| recovery-wrapped vault key           | recoveryKek | `zk2fa/v1/rvk\|{userId}`                                                          |
+| vault item (token, folder, settings) | vaultKey    | `zk2fa/v1/item\|{userId}\|{itemId}\|{kind}`, kind ∈ `token`, `folder`, `settings` |
+| device name                          | vaultKey    | `zk2fa/v1/device\|{userId}\|{deviceId}`                                           |
+| encrypted backup file (§9)           | backupKey   | `zk2fa/v1/backup\|{B64U(backupSalt)}`                                             |
 
 A wrapped key is always 1 + 12 + 32 + 16 = **61 bytes** (82 base64url characters).
 
@@ -241,7 +241,37 @@ item field.
 | `tamper`             | envelopes / contexts that MUST fail to decrypt                                                |
 | `invalidEnvelopes`   | malformed encodings that MUST be rejected before decryption                                   |
 | `kdfParamsRejected`  | prelogin params that MUST be refused                                                          |
+| `backup`             | backup files with fixed salt and nonce, byte for byte; files that MUST be rejected            |
 | `otp.*`              | RFC 4226, RFC 6238 (SHA1/256/512), Steam, otpauth:// parsing, otpauth-migration:// decoding   |
 
 Fixed nonces exist **only** in test vectors. Production code paths MUST NOT accept a
 caller-supplied nonce.
+
+## 9. Encrypted backup file
+
+A backup is a file the user downloads and keeps. It is protected by a **backup password** the
+user chooses at export time and is independent of the account: it holds no user id and no
+account key, so it restores into the same account or any other one.
+
+```
+backupSalt  = 16 random bytes (fresh for every file)
+backupMK    = Argon2id(pwd = NormPassword(backupPassword), salt = backupSalt, kdf_version 1 params)
+backupKey   = HKDF-SHA256(IKM = backupMK, salt = <empty>, info = UTF8("zk2fa/v1/backup"), L = 32)
+contents    = JCS({"exportedAt": <unix ms>, "tokens": [<token item §6.3>, …]})
+data        = Envelope(backupKey, pad(contents), "zk2fa/v1/backup|" ‖ B64U(backupSalt))
+file        = JCS({"format": "veilauth-backup", "version": 1,
+                   "kdf": {"alg": "argon2id", "params": {"m":…,"p":…,"t":…}, "salt": B64U(backupSalt)},
+                   "data": data})
+```
+
+- `pad` is §6.2 without the item size limit; encoders MUST refuse a padded size above 8 MiB and
+  more than 1000 tokens (the vault limit). `backupMK` is wiped after HKDF.
+- The salt is in the AAD, so `data` cannot be moved under another file's KDF header.
+- Decoders MUST: reject a file over 12 MiB characters, any `format` other than
+  `"veilauth-backup"` or `version` other than `1`, and a missing or mistyped field with
+  `INVALID_BACKUP`; validate `kdf` with the §3 rules (`KDF_PARAMS_REJECTED`) **before** running
+  Argon2id; report any GCM failure (wrong password or tampering) as `DECRYPT_FAILED`; then
+  validate every token with §6.3, unknown keys preserved.
+- Tokens in the trash are not exported. Folder items are not part of version 1; a restoring
+  client clears `folderId` and `trashedAt`, gives every token a fresh item id, and skips tokens
+  already in the vault (same issuer, account and secret).

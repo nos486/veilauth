@@ -122,6 +122,10 @@ def ctx_item(uid: str, iid: str, kind: str) -> str:
     return f"zk2fa/v1/item|{uid}|{iid}|{kind}"
 
 
+def ctx_backup(salt: bytes) -> str:
+    return f"zk2fa/v1/backup|{b64u(salt)}"
+
+
 def bip39_encode(entropy: bytes, words: list[str]) -> str:
     assert len(entropy) == 32
     bits = int.from_bytes(entropy, "big") << 8 | hashlib.sha256(entropy).digest()[0]
@@ -370,6 +374,50 @@ def gen_invalid_envelopes(items: list[dict]) -> list[dict]:
     ]
 
 
+def backup_file(password: str, contents: dict, salt: bytes, nonce: bytes) -> tuple[str, dict]:
+    key = hkdf(argon2id(norm_password(password), salt, **KDF_V1), "zk2fa/v1/backup")
+    padded = pad(jcs(contents))
+    data = seal(key, padded, ctx_backup(salt), nonce)
+    assert open_(key, data, ctx_backup(salt)) == padded
+    file = {"format": "veilauth-backup", "version": 1,
+            "kdf": {"alg": "argon2id", "params": KDF_V1, "salt": b64u(salt)}, "data": data}
+    return jcs(file).decode("utf-8"), {"backupKeyHex": h(key), "paddedLength": len(padded)}
+
+
+def gen_backup(items: list[dict]) -> dict:
+    tokens = [i["plaintext"] for i in items if i["kind"] == "token"]
+    cases = []
+    for name, pw, contents, salt, nonce in [
+        ("three-tokens", "backup password 1", {"exportedAt": 1760001000000, "tokens": tokens}, seq(0xC1, 16), seq(0xD1, 12)),
+        ("empty-nfkc-password", "Ｐässwörd ﬁ", {"exportedAt": 0, "tokens": []}, seq(0xC2, 16), seq(0xD2, 12)),
+    ]:
+        file, extra = backup_file(pw, contents, salt, nonce)
+        cases.append({"name": name, "password": pw, "saltHex": h(salt), "nonceHex": h(nonce),
+                      "contents": contents, "aad": ctx_backup(salt), **extra, "file": file})
+    base = json.loads(cases[1]["file"])
+    pw = cases[1]["password"]
+
+    def variant(**over: object) -> str:
+        f = dict(base)
+        f.update(over)
+        return jcs(f).decode("utf-8")
+
+    other_salt = b64u(seq(0xC3, 16))
+    weak = {"alg": "argon2id", "params": {"m": 32768, "t": 3, "p": 1}, "salt": base["kdf"]["salt"]}
+    not_object, _ = backup_file(pw, {"exportedAt": 0, "tokens": {}}, seq(0xC4, 16), seq(0xD4, 12))
+    rejected = [
+        {"name": "wrong-password", "password": pw + "!", "file": cases[1]["file"], "error": "DECRYPT_FAILED"},
+        {"name": "salt-swapped", "password": pw, "file": variant(kdf={**base["kdf"], "salt": other_salt}), "error": "DECRYPT_FAILED"},
+        {"name": "not-json", "password": pw, "file": "veilauth", "error": "INVALID_BACKUP"},
+        {"name": "wrong-format", "password": pw, "file": variant(format="other"), "error": "INVALID_BACKUP"},
+        {"name": "version-2", "password": pw, "file": variant(version=2), "error": "INVALID_BACKUP"},
+        {"name": "data-not-envelope", "password": pw, "file": variant(data="AA"), "error": "INVALID_BACKUP"},
+        {"name": "weak-kdf", "password": pw, "file": variant(kdf=weak), "error": "KDF_PARAMS_REJECTED"},
+        {"name": "tokens-not-array", "password": pw, "file": not_object, "error": "INVALID_BACKUP"},
+    ]
+    return {"cases": cases, "rejected": rejected}
+
+
 def gen_padding() -> list[dict]:
     out = []
     for name, obj in [("empty-object", {}), ("ascii", {"b": 1, "a": "x"}),
@@ -570,6 +618,7 @@ def build() -> dict:
         "tamper": gen_tamper(items),
         "invalidEnvelopes": gen_invalid_envelopes(items),
         "kdfParamsRejected": gen_kdf_rejected(),
+        "backup": gen_backup(items),
         "otp": gen_otp(),
     }
 
