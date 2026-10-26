@@ -15,8 +15,8 @@ copy the **Database ID**.
 
 ## 2. Put the database id in `wrangler.jsonc`
 
-Open `apps/worker/wrangler.jsonc` on GitHub → ✏️ edit → replace `REPLACE_WITH_D1_DATABASE_ID`
-with the id from step 1 → **Commit changes**. The id is not secret.
+Open `apps/worker/wrangler.jsonc` on GitHub → ✏️ edit → set `d1_databases[0].database_id`
+to the id from step 1 → **Commit changes**. The id is not secret.
 
 ## 3. Generate the secrets (once)
 
@@ -121,7 +121,7 @@ The app trusts the API host only with the certificate pins in `apps/android/app/
 | Symptom                                                       | Fix                                                                                            |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Every request returns `{"code":"INTERNAL"}`                   | A secret is missing. Check the Worker's **Variables and Secrets**.                             |
-| Build fails with `Couldn't find a D1 DB`                      | `wrangler.jsonc` still contains `REPLACE_WITH_D1_DATABASE_ID` (step 2).                        |
+| Build fails with `Couldn't find a D1 DB`                      | `database_id` in `wrangler.jsonc` is not your database's id (step 2).                          |
 | `no such table: users`                                        | The migrations did not run: check the deploy command (step 4) and the build log.               |
 | Register fails with `TURNSTILE_REQUIRED` / `TURNSTILE_FAILED` | The widget hostname must match the app's domain, and both keys must belong to the same widget. |
 
