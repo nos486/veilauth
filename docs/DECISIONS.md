@@ -155,8 +155,9 @@ vault, and Google Play forbids it. Instead:
 
 - Every PR and push to `main`: format, lint, typecheck, tests, vector drift check, dependency
   audit, CodeQL, secret scan (Phase 0, `.github/workflows/ci.yml`).
-- Push to `main`: deploy Worker and web app to staging (added in Phase 1).
-- Tag `v*`: production deploy, signed APK + AAB built in GitHub Actions with the keystore from
+- Push to `main`: Cloudflare Workers Builds deploys the Worker and web app to production
+  (D-050; until then GitHub Actions deployed to staging).
+- Tag `v*`: signed APK + AAB built in GitHub Actions with the keystore from
   repository secrets, a `SHA256SUMS` file and a release manifest attached to a GitHub Release
   (added in Phase 1 for the web build and Phase 3 for Android). The in-app updater (D-019) reads
   that release.
@@ -250,7 +251,7 @@ a conditional update on the old hash, so two concurrent refreshes cannot both wi
 
 Development: off when `TURNSTILE_SITE_KEY` is empty. Staging: Cloudflare's always-pass test
 keys, so E2E tests can register. Production: real keys. A missing secret outside development is
-a hard error, never a silent bypass. **Amended by D-049:** production may run without Turnstile.
+a hard error, never a silent bypass. **Amended by D-049:** production may run without Turnstile. Staging was removed by D-050.
 
 ## D-034 Logging allowlist
 
@@ -373,7 +374,7 @@ would break the app whenever Cloudflare rotates its certificate, which happens e
 roots cover rotation and a change between Cloudflare's CAs, and still stop a rogue certificate
 from any other CA in the system store. `network_security_config.xml` also disables cleartext and
 user-installed CAs. Self-hosters on another CA override the list with `-Pveilauth.certPins`
-(SELF_HOSTING.md section D). The GitHub download client for the updater is not pinned: every APK
+(SELF_HOSTING.md, "Android releases"). The GitHub download client for the updater is not pinned: every APK
 is checked by SHA-256 and signing certificate instead (D-019).
 
 ## D-048 Android Phase 3 scope
@@ -406,3 +407,16 @@ Sign-up stays limited to 3 accounts per hour per IP (D-025) and log-in by the Ra
 binding plus the per-account lockout (D-024), so automated sign-ups are slowed, not blocked.
 Setting a site key turns Turnstile back on; a site key without a secret is still a hard error
 (D-033). The release workflow fills the site key only when both GitHub settings are present.
+
+## D-050 One production environment, deployed by Cloudflare from Git
+
+Sina dropped staging to keep the setup simple. `wrangler.jsonc` now describes a single Worker,
+`veilauth`, with one D1 database; `wrangler dev` and the tests use the same file with a local,
+simulated D1. Sina creates the Worker in the Cloudflare dashboard and connects it to the GitHub
+repository (Workers Builds), so every push to `main` builds and deploys, with D1 migrations
+applied before each deploy (`pnpm run deploy`). The GitHub Actions deploy jobs, the staging
+workflow, the `ENVIRONMENT` variable and the D1 setup script are gone. GitHub Actions still runs
+CI on every push, and a `v*` tag still builds the signed Android app and the GitHub Release.
+The web app keeps being served by the Worker (same origin, no CORS), so no Pages project is
+needed. The trade-off: changes reach production without a staging check, so CI (unit, Worker
+and E2E tests) is the only gate before users see them.

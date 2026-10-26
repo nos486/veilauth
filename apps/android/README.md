@@ -25,4 +25,4 @@ The app needs the Android SDK (Android Studio, or `ANDROID_HOME`):
 `-Pveilauth.apiBaseUrl` picks the server, `-Pveilauth.certPins` overrides the certificate pins
 (D-047). Regenerate the API models after changing the server schemas with
 `pnpm --filter @zk2fa/shared kotlin`. Flavors: `github` (in-app updater, D-019) and `fdroid`.
-Signed release builds come from `.github/workflows/release.yml` (docs/SELF_HOSTING.md, section D).
+Signed release builds come from `.github/workflows/release.yml` (docs/SELF_HOSTING.md, "Android releases").

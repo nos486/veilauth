@@ -1,20 +1,14 @@
 #!/usr/bin/env node
-// Generates the Worker secrets and (optionally) uploads them with `wrangler secret put`.
+// Generates the Worker secrets.
 //
-//   node scripts/generate-secrets.mjs --dev               write .dev.vars for `wrangler dev`
-//   node scripts/generate-secrets.mjs --env staging       upload to the staging Worker
-//   node scripts/generate-secrets.mjs --env production    upload to the production Worker
-//   node scripts/generate-secrets.mjs --print             print once, to paste into the dashboard
-//   add --missing-only to --env to upload only secrets the Worker does not have yet (used by CI)
+//   node scripts/generate-secrets.mjs --print   print once, to paste into the Cloudflare dashboard
+//   node scripts/generate-secrets.mjs --dev     write .dev.vars for `wrangler dev`
 //
-// Apart from --print, values are never printed. Run each deployed environment ONCE: rotating FAKE_SALT_SECRET changes
-// every fake prelogin salt (an observer could then tell real accounts from fake ones), and rotating
-// JWT_PRIVATE_JWK logs everyone out.
-import { execFileSync } from "node:child_process";
+// Set the production secrets ONCE: rotating FAKE_SALT_SECRET changes every fake prelogin salt (an
+// observer could then tell real accounts from fake ones), and rotating JWT_PRIVATE_JWK logs
+// everyone out.
 import { existsSync, writeFileSync } from "node:fs";
 import { webcrypto as crypto } from "node:crypto";
-
-const TURNSTILE_TEST_SECRET = "1x0000000000000000000000000000000AA"; // Cloudflare's always-pass test secret
 
 function b64u(n) {
   return Buffer.from(crypto.getRandomValues(new Uint8Array(n))).toString("base64url");
@@ -48,36 +42,6 @@ if (args.includes("--print")) {
   writeFileSync(".dev.vars", `${lines.join("\n")}\n`, { mode: 0o600 });
   console.log("wrote .dev.vars (git-ignored)");
 } else {
-  const i = args.indexOf("--env");
-  const env = i === -1 ? undefined : args[i + 1];
-  if (env !== "staging" && env !== "production") {
-    console.error("usage: generate-secrets.mjs --dev | --print | --env staging|production");
-    process.exit(1);
-  }
-  if (env === "staging") secrets.TURNSTILE_SECRET_KEY = TURNSTILE_TEST_SECRET;
-  if (args.includes("--missing-only")) {
-    const existing = JSON.parse(
-      execFileSync("npx", ["wrangler", "secret", "list", "--env", env, "--format", "json"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "inherit"],
-      }),
-    ).map((s) => s.name);
-    for (const name of existing) delete secrets[name];
-    if (Object.keys(secrets).length === 0) {
-      console.log(`all secrets already set on ${env}`);
-      process.exit(0);
-    }
-  }
-  for (const [name, value] of Object.entries(secrets)) {
-    execFileSync("npx", ["wrangler", "secret", "put", name, "--env", env], {
-      input: value,
-      stdio: ["pipe", "inherit", "inherit"],
-    });
-  }
-  console.log(`uploaded ${Object.keys(secrets).join(", ")} to ${env}`);
-  if (env === "production" && !args.includes("--missing-only")) {
-    console.log(
-      "optional, with Turnstile on: npx wrangler secret put TURNSTILE_SECRET_KEY --env production",
-    );
-  }
+  console.error("usage: generate-secrets.mjs --print | --dev");
+  process.exit(1);
 }

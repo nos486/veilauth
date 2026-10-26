@@ -1,8 +1,9 @@
-// Cloudflare Worker config. See docs/SELF_HOSTING.md for the deploy walkthrough.
-// Top level = local development (`wrangler dev`). `env.staging` / `env.production` = deployed copies,
-// each with its own D1 database. Secrets are never stored here: use `wrangler secret put`.
+// Cloudflare Worker config: the one production Worker, also used by `wrangler dev` and the tests
+// (locally D1 is simulated, so the database id below only matters on Cloudflare).
+// Deploy walkthrough: docs/SELF_HOSTING.md. Secrets are never stored here.
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
+  // Must match the Worker's name in the Cloudflare dashboard.
   "name": "veilauth",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
@@ -17,53 +18,20 @@
     "run_worker_first": ["/api/*"],
   },
   "triggers": { "crons": ["17 3 * * *"] },
-  "vars": { "ENVIRONMENT": "development", "TURNSTILE_SITE_KEY": "" },
+  "vars": {
+    // Optional (D-049): a Turnstile site key protects sign-up; empty turns it off.
+    "TURNSTILE_SITE_KEY": "",
+  },
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "veilauth-dev",
-      "database_id": "local",
+      "database_name": "veilauth",
+      // Paste the id of your D1 database here (Dashboard → Storage & Databases → D1).
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
       "migrations_dir": "migrations",
     },
   ],
   "ratelimits": [
     { "name": "RL_AUTH", "namespace_id": "4201", "simple": { "limit": 5, "period": 60 } },
   ],
-
-  "env": {
-    "staging": {
-      "name": "veilauth-staging",
-      "vars": { "ENVIRONMENT": "staging", "TURNSTILE_SITE_KEY": "1x00000000000000000000AA" },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "veilauth-staging",
-          "database_id": "REPLACE_WITH_STAGING_D1_ID",
-          "migrations_dir": "migrations",
-        },
-      ],
-      "ratelimits": [
-        { "name": "RL_AUTH", "namespace_id": "4202", "simple": { "limit": 5, "period": 60 } },
-      ],
-    },
-    "production": {
-      "name": "veilauth",
-      "vars": {
-        "ENVIRONMENT": "production",
-        // Optional (D-049): a Turnstile site key protects sign-up; empty turns it off.
-        "TURNSTILE_SITE_KEY": "",
-      },
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_name": "veilauth-production",
-          "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
-          "migrations_dir": "migrations",
-        },
-      ],
-      "ratelimits": [
-        { "name": "RL_AUTH", "namespace_id": "4203", "simple": { "limit": 5, "period": 60 } },
-      ],
-    },
-  },
 }

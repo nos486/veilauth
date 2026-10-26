@@ -1,139 +1,24 @@
 # Deploying veilauth to Cloudflare
 
-veilauth runs entirely on Cloudflare: one **Worker** serves the API (`/api/v1/*`) and the web
-app's static files from the same origin, **D1** stores the encrypted vault, and the **Rate
-Limiting** binding (plus **Turnstile**, if you turn it on) protects the login endpoints. Everything fits in the Workers
-Free plan for personal use. The Workers Paid plan ($5/month) gives you more D1 and CPU headroom.
+veilauth runs entirely on Cloudflare: one **Worker** serves both the API (`/api/v1/*`) and the
+web app, from the same origin, and **D1** stores the encrypted vault. There is no separate Pages
+project: the Worker's static assets are the web app. Everything fits in the Workers Free plan
+for personal use.
 
-There are three ways to deploy:
+There is one environment, production. Cloudflare builds and deploys it from GitHub on every
+push to `main` (Workers Builds); GitHub Actions only runs CI and builds release files.
 
-| Way                                                                                                           | Best for                                        | You need                                    |
-| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------- |
-| **A. Manual, command line** (sections 1–6)                                                                    | full control, fastest                           | Node 22 + pnpm on your machine              |
-| **B. Manual, Cloudflare dashboard only** ([section B](#b-manual-deploy-from-the-cloudflare-dashboard-no-cli)) | no local tooling; Cloudflare builds from GitHub | a browser (and Node once, to generate keys) |
-| **C. Automatic, GitHub Actions** ([section C](#c-automatic-deploys-from-github-actions-recommended))          | push to `main` → staging, tag → production      | A or B done once, plus two GitHub secrets   |
+## 1. Create the D1 database
 
-## A. Manual deploy from the command line
+Dashboard → **Storage & Databases** → **D1 SQL Database** → **Create** → name it `veilauth` →
+copy the **Database ID**.
 
-You need:
+## 2. Put the database id in `wrangler.jsonc`
 
-- a Cloudflare account (free) and, optionally, a domain on Cloudflare;
-- Node 22 and pnpm 10 (`corepack enable`);
-- this repository cloned locally.
+Open `apps/worker/wrangler.jsonc` on GitHub → ✏️ edit → replace `REPLACE_WITH_D1_DATABASE_ID`
+with the id from step 1 → **Commit changes**. The id is not secret.
 
-All commands below run from `apps/worker/` unless they say otherwise.
-
-```sh
-pnpm install            # at the repo root
-pnpm build              # at the repo root: builds @zk2fa/crypto and @zk2fa/shared
-cd apps/worker
-```
-
-To deploy only production, use `production` in place of `staging production` in step 2 and skip
-the staging commands below.
-
-### 1. Log in to Cloudflare
-
-```sh
-npx wrangler login      # opens a browser; or set CLOUDFLARE_API_TOKEN for CI
-npx wrangler whoami     # note your Account ID
-```
-
-### 2. Create the D1 databases
-
-```sh
-node scripts/setup-cloudflare.mjs staging production
-```
-
-The script creates `veilauth-staging` and `veilauth-production` (if they don't exist yet) and
-writes their ids into `wrangler.jsonc` in place of `REPLACE_WITH_*_D1_ID`. Commit that change:
-database ids are not secret.
-
-To do it by hand instead, run `npx wrangler d1 create veilauth-production` and paste the
-`database_id` it prints into `env.production.d1_databases[0].database_id`.
-
-### 3. Create a Turnstile widget (production, optional)
-
-Turnstile is Cloudflare's CAPTCHA replacement. It stops scripts from mass-creating accounts. It
-is off when the site key is empty (the default); skip this step and the Turnstile line in step 4
-to run without it (D-049).
-
-1. Dashboard → **Turnstile** → **Add widget**.
-2. Hostname: the domain you will serve veilauth on (for example `vault.example.com`, or
-   `veilauth.<your-subdomain>.workers.dev`).
-3. Widget mode: **Managed**.
-4. Copy the **site key** into `wrangler.jsonc` → `env.production.vars.TURNSTILE_SITE_KEY`
-   (it is public). Keep the **secret key** for step 4.
-
-Staging uses Cloudflare's always-pass test keys, so automated tests can register accounts.
-
-### 4. Set the secrets
-
-```sh
-node scripts/generate-secrets.mjs --env staging
-node scripts/generate-secrets.mjs --env production
-npx wrangler secret put TURNSTILE_SECRET_KEY --env production   # only with Turnstile on
-```
-
-| Secret                 | What it is                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `JWT_PRIVATE_JWK`      | Ed25519 private key that signs 15-minute access tokens                               |
-| `FAKE_SALT_SECRET`     | HMAC key for fake prelogin salts (prevents account enumeration)                      |
-| `IP_HASH_SECRET`       | HMAC key that pseudonymises IPs and e-mails in the audit log and rate-limit counters |
-| `TURNSTILE_SECRET_KEY` | Turnstile server-side secret (only with Turnstile on)                                |
-
-To paste the secrets into the dashboard yourself instead, run
-`node scripts/generate-secrets.mjs --print`.
-
-Generate these **once per environment**. Rotating `JWT_PRIVATE_JWK` logs every device out.
-Rotating `FAKE_SALT_SECRET` changes the fake salts, which lets an observer tell real accounts
-from fake ones. The script never prints the values. They exist only in Cloudflare.
-
-### 5. Apply the database migrations
-
-```sh
-pnpm db:migrate:staging
-pnpm db:migrate:production
-```
-
-### 6. Deploy
-
-```sh
-pnpm deploy:staging
-pnpm deploy:production
-```
-
-Wrangler prints the URL, for example `https://veilauth.<subdomain>.workers.dev`. Check it:
-
-```sh
-curl https://veilauth.<subdomain>.workers.dev/api/v1/time
-# {"now":1792562498116}
-```
-
-## B. Manual deploy from the Cloudflare dashboard (no CLI)
-
-Cloudflare **Workers Builds** pulls the repository from GitHub, builds it and deploys it. You do
-everything in the browser. The only local step is generating the keys once.
-
-### B1. Create the D1 database
-
-Dashboard → **Storage & Databases** → **D1 SQL Database** → **Create** → name
-`veilauth-production` → copy the **Database ID**.
-
-### B2. Create a Turnstile widget (optional)
-
-Skip this to run without Turnstile. Otherwise, same as [step 3](#3-create-a-turnstile-widget-production). Keep the site key and the secret key.
-
-### B3. Put the ids in `wrangler.jsonc` (on GitHub)
-
-Open `apps/worker/wrangler.jsonc` on GitHub → ✏️ edit:
-
-- replace `REPLACE_WITH_PRODUCTION_D1_ID` with the Database ID from B1;
-- with Turnstile: put the site key in `env.production.vars.TURNSTILE_SITE_KEY` (empty = off).
-
-**Commit changes.** Neither value is secret.
-
-### B4. Generate the secrets (once)
+## 3. Generate the secrets (once)
 
 On any machine with Node 22:
 
@@ -142,98 +27,66 @@ git clone https://github.com/nos486/veilauth.git && cd veilauth/apps/worker
 node scripts/generate-secrets.mjs --print
 ```
 
-This prints three values. Paste them only into the dashboard in B6 and don't save them anywhere
-else.
+It prints three values: `JWT_PRIVATE_JWK` (signs 15-minute access tokens), `FAKE_SALT_SECRET`
+(fake prelogin salts, so nobody can tell which e-mails have accounts) and `IP_HASH_SECRET`
+(pseudonymises IPs and e-mails in logs and counters). Paste them only into the dashboard in
+step 5 and don't save them anywhere else. Never regenerate them later: a new `JWT_PRIVATE_JWK`
+logs every device out, and a new `FAKE_SALT_SECRET` lets an observer tell real accounts from
+fake ones.
 
-### B5. Connect the repository and run the first build
+## 4. Create the Worker from the repository
 
 Dashboard → **Workers & Pages** → **Create** → **Import a repository** → pick `nos486/veilauth`:
 
-| Field          | Value                                                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Project name   | `veilauth` (must match the production Worker name)                                                                                         |
-| Root directory | `/`                                                                                                                                        |
-| Build command  | `corepack enable && pnpm install --frozen-lockfile && pnpm build`                                                                          |
-| Deploy command | `cd apps/worker && npx wrangler d1 migrations apply veilauth-production --remote --env production && npx wrangler deploy --env production` |
+| Field          | Value                                                             |
+| -------------- | ----------------------------------------------------------------- |
+| Project name   | `veilauth` (must match `name` in `wrangler.jsonc`)                |
+| Root directory | `/`                                                               |
+| Build command  | `corepack enable && pnpm install --frozen-lockfile && pnpm build` |
+| Deploy command | `cd apps/worker && pnpm run deploy`                               |
 
-Click **Deploy**. The deploy command applies pending D1 migrations before every deploy.
+`pnpm run deploy` applies pending D1 migrations, then deploys. Click **Deploy**.
 
 > If the migration step fails with an authentication or permission error, go to the Worker →
 > **Settings** → **Build** → **API token**, add **Account · D1 · Edit**, then **Retry build**.
 
-### B6. Add the secrets
+## 5. Add the secrets
 
-Worker `veilauth` → **Settings** → **Variables and Secrets** → **Add**. Set **Type** to
-**Secret** for each of these:
+Worker `veilauth` → **Settings** → **Variables and Secrets** → **Add**, type **Secret**, once
+for each value from step 3. Then **Deployments** → **Retry build** (or push to `main`).
 
-- `JWT_PRIVATE_JWK`, `FAKE_SALT_SECRET`, `IP_HASH_SECRET` (from B4)
-- `TURNSTILE_SECRET_KEY` (from B2, only with Turnstile on)
+Keep plain variables such as `TURNSTILE_SITE_KEY` in `wrangler.jsonc`: a value edited in the
+dashboard is overwritten by the next deploy. Secrets survive deploys.
 
-Then click **Deploy**.
+## 6. Check it
 
-Keep the plain variables (`ENVIRONMENT`, `TURNSTILE_SITE_KEY`) in `wrangler.jsonc`. If you edit
-them in the dashboard, the next deploy overwrites your change. Secrets survive deploys.
+Open `https://veilauth.<subdomain>.workers.dev/api/v1/time`. You should see `{"now":...}`. Then
+open the root URL and create an account.
 
-### B7. Check it
+## Custom domain (recommended)
 
-Open `https://veilauth.<subdomain>.workers.dev/api/v1/time` in a browser. You should see
-`{"now":...}`.
+Worker `veilauth` → **Settings** → **Domains & Routes** → **Add** → **Custom domain** →
+`vault.example.com`. Cloudflare issues the certificate. Then turn off the `workers.dev` route
+on the same page so the app has a single origin.
 
-### B8. Later updates
+## Updates
 
-By default, every push to `main` rebuilds and redeploys. For manual-only deploys, turn off
-**Settings** → **Build** → **Branch control** and use **Deployments** → **Retry build** when
-you want to ship.
+Every push to `main` rebuilds and redeploys. For manual-only deploys, turn off **Settings** →
+**Build** → **Branch control** and use **Deployments** → **Retry build** when you want to ship.
 
-## C. Automatic deploys from GitHub Actions (recommended)
+## Turnstile (optional)
 
-The repository ships three workflows:
+Turnstile is Cloudflare's CAPTCHA replacement; it stops scripts from mass-creating accounts. It
+is off while `TURNSTILE_SITE_KEY` is empty (D-049). Without it, sign-up is still limited to 3
+accounts per hour per IP. To turn it on: Dashboard → **Turnstile** → **Add widget** (hostname =
+your domain, mode **Managed**), put the site key in `wrangler.jsonc` → `vars.TURNSTILE_SITE_KEY`,
+and add the secret key as the secret `TURNSTILE_SECRET_KEY`.
 
-| Workflow             | Trigger           | What it does                                                                                                     |
-| -------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`             | every PR and push | lint, typecheck, tests (including Worker tests on a local D1), vector + OpenAPI drift checks, audit, secret scan |
-| `deploy-staging.yml` | push to `main`    | D1 migrations → `wrangler deploy --env staging` → smoke test                                                     |
-| `release.yml`        | tag `v*`          | production migrations + deploy → smoke test → signed Android APK/AAB → GitHub Release with `SHA256SUMS`          |
+## Android releases (signed APK and AAB)
 
-Set these in GitHub → **Settings** → **Secrets and variables** → **Actions**:
-
-| Name                    | Kind     | Value                                                                                                                                         |
-| ----------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CLOUDFLARE_API_TOKEN`  | secret   | Dashboard → My Profile → API Tokens → **Create token** → template **Edit Cloudflare Workers**, and add the permission **Account · D1 · Edit** |
-| `CLOUDFLARE_ACCOUNT_ID` | secret   | from `wrangler whoami`                                                                                                                        |
-| `STAGING_URL`           | variable | e.g. `https://veilauth-staging.<subdomain>.workers.dev`                                                                                       |
-| `PRODUCTION_URL`        | variable | e.g. `https://vault.example.com`                                                                                                              |
-| `TURNSTILE_SITE_KEY`    | variable | optional: site key of your Turnstile widget ([step 3](#3-create-a-turnstile-widget-production-optional)); hostname = your production domain   |
-| `TURNSTILE_SECRET_KEY`  | secret   | optional: secret key of the same widget (set both or neither)                                                                                 |
-
-Then create a GitHub **environment** called `production` (Settings → Environments) and add
-yourself as a required reviewer, so every production deploy waits for your approval.
-
-Releasing:
-
-```sh
-git tag v0.1.0 && git push origin v0.1.0
-```
-
-Until `CLOUDFLARE_API_TOKEN` is set, the deploy jobs skip themselves with a notice instead of
-failing.
-
-On the first run you don't need to do steps 2 and 4 of section A yourself. Each workflow creates
-the D1 database if it is missing (and fills its id into its own copy of `wrangler.jsonc`), and
-generates any missing `JWT_PRIVATE_JWK`, `FAKE_SALT_SECRET` and `IP_HASH_SECRET` inside
-Cloudflare. Existing secrets are never replaced. For production, the release workflow also
-writes `TURNSTILE_SITE_KEY` into its copy of `wrangler.jsonc` and sets `TURNSTILE_SECRET_KEY` in
-Cloudflare when both are set. With neither, production runs without Turnstile; with only one,
-the workflow stops with an error.
-
-To redeploy production from `main` without a new release, open **Actions** → **Release** →
-**Run workflow**. Only a tag creates a GitHub Release.
-
-## D. Android releases (signed APK and AAB)
-
-A tag build also produces the Android app when these are set (Settings → Secrets and variables
-→ Actions). Without them the release is published with the web build only, and the workflow
-prints a warning.
+Pushing a tag such as `v0.1.0` runs `release.yml`, which builds the signed Android app and
+publishes a GitHub Release. Set these in GitHub → **Settings** → **Secrets and variables** →
+**Actions**. Without them the release has no APK, and the workflow prints a warning.
 
 | Name                        | Kind     | Value                                                                       |
 | --------------------------- | -------- | --------------------------------------------------------------------------- |
@@ -241,7 +94,7 @@ prints a warning.
 | `ANDROID_KEYSTORE_PASSWORD` | secret   | keystore password                                                           |
 | `ANDROID_KEY_ALIAS`         | secret   | key alias, e.g. `veilauth`                                                  |
 | `ANDROID_KEY_PASSWORD`      | secret   | key password                                                                |
-| `PRODUCTION_URL`            | variable | the server the app talks to (already set for section C), built into the APK |
+| `PRODUCTION_URL`            | variable | your Worker's address, e.g. `https://vault.example.com`, built into the APK |
 
 Create the keystore once, on your own machine, and keep an offline backup. **Every future
 update must be signed with this same key**: the in-app updater and Android itself refuse an APK
@@ -263,56 +116,36 @@ The app trusts the API host only with the certificate pins in `apps/android/app/
 (the root CAs Cloudflare uses). If your custom domain uses another CA, build with
 `-Pveilauth.certPins=sha256/...` (or `none` to rely on the system trust store only).
 
-## Custom domain (recommended, A or B)
-
-Dashboard → **Workers & Pages** → `veilauth` → **Settings** → **Domains & Routes** → **Add** →
-**Custom domain** → `vault.example.com`. Cloudflare issues the certificate. Then turn off the
-`workers.dev` route on the same page so the app has a single origin, and add the new domain to
-the Turnstile widget's hostnames.
-
-## Updating a manual (command-line) deploy
-
-```sh
-git pull
-pnpm install && pnpm build          # repo root
-cd apps/worker
-pnpm db:migrate:production          # always migrate first
-pnpm deploy:production
-../../scripts/smoke-test.sh https://vault.example.com
-```
-
 ## Troubleshooting
 
-| Symptom                                                       | Fix                                                                                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Every request returns `{"code":"INTERNAL"}`                   | A secret is missing. Check Variables and Secrets (or `npx wrangler secret list --env production`).               |
-| Register fails with `TURNSTILE_REQUIRED` / `TURNSTILE_FAILED` | The widget hostname must match the app's domain, and the site key and secret key must belong to the same widget. |
-| `no such table: users`                                        | The migrations have not been applied: `pnpm db:migrate:production`.                                              |
-| `Couldn't find a D1 DB`                                       | `wrangler.jsonc` still contains `REPLACE_WITH_..._D1_ID`.                                                        |
+| Symptom                                                       | Fix                                                                                            |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Every request returns `{"code":"INTERNAL"}`                   | A secret is missing. Check the Worker's **Variables and Secrets**.                             |
+| Build fails with `Couldn't find a D1 DB`                      | `wrangler.jsonc` still contains `REPLACE_WITH_D1_DATABASE_ID` (step 2).                        |
+| `no such table: users`                                        | The migrations did not run: check the deploy command (step 4) and the build log.               |
+| Register fails with `TURNSTILE_REQUIRED` / `TURNSTILE_FAILED` | The widget hostname must match the app's domain, and both keys must belong to the same widget. |
 
 ## Local development
 
 ```sh
+pnpm install && pnpm build                 # repo root
 cd apps/worker
-node scripts/generate-secrets.mjs --dev   # writes .dev.vars (git-ignored)
+node scripts/generate-secrets.mjs --dev    # writes .dev.vars (git-ignored)
 pnpm db:migrate:local
-pnpm dev                                  # http://localhost:8787
+pnpm dev                                   # http://localhost:8787
 ```
 
-Turnstile is off whenever the site key is empty, as in local development and (by default)
-production. Staging uses Cloudflare's always-pass test keys. With a site key set, the Worker
-refuses Turnstile-protected requests if the secret is missing.
+Locally, D1 is simulated and Turnstile is off.
 
 ## Operations
 
 - **Logs:** Dashboard → Workers → veilauth → **Logs** (Workers Logs is enabled). Only error
   class names and route paths are logged, never request data.
 - **Backups:** D1 Time Travel restores the database to any minute in the last 30 days
-  (`npx wrangler d1 time-travel restore veilauth-production --timestamp=...`). The data is
+  (`npx wrangler d1 time-travel restore veilauth --timestamp=...`). The data is
   ciphertext, so a backup is useless without users' passwords.
 - **Maintenance cron:** runs daily at 03:17 UTC. It purges tombstones older than 90 days and
   audit entries older than 180 days, and cleans up expired sessions and counters.
-- **Upgrades:** pull, `pnpm install && pnpm build`, run the migrations for each environment,
-  then deploy. Migrations are forward-only and always run before the deploy, both in CI and in
-  the commands above.
+- **Upgrades:** push to `main`. The deploy command applies D1 migrations (forward-only) before
+  every deploy.
 - **Limits:** 1000 items per user, 8 KB per item, 200 changes per sync push.

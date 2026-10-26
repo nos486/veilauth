@@ -18,16 +18,7 @@ if (!existsSync(fileURLToPath(new URL("../dist/index.html", import.meta.url)))) 
 }
 rmSync(new URL(state, `file://${worker}`), { recursive: true, force: true });
 if (!existsSync(`${worker}.dev.vars`)) run("node", ["scripts/generate-secrets.mjs", "--dev"]);
-run("npx", [
-  "wrangler",
-  "d1",
-  "migrations",
-  "apply",
-  "veilauth-dev",
-  "--local",
-  "--persist-to",
-  state,
-]);
+run("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--local", "--persist-to", state]);
 const child = spawn("npx", ["wrangler", "dev", "--port", port, "--persist-to", state], {
   cwd: worker,
   stdio: "inherit",

@@ -181,7 +181,6 @@ describe("Turnstile", () => {
 
   const prodEnv = {
     ...env,
-    ENVIRONMENT: "production",
     TURNSTILE_SITE_KEY: "site",
     TURNSTILE_SECRET_KEY: "secret",
   } as Env;

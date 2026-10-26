@@ -8,7 +8,7 @@ password. Everything is encrypted on the device before upload.
 > packages, the Cloudflare Worker API, the installable web app (PWA) and the Android app are done
 > and tested. Phase 4 (importers, backups, recovery UI) comes next.
 >
-> **Deploy your own:** [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) (Cloudflare Workers + D1, about 15 minutes).
+> **Deploy your own:** [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) (one Cloudflare Worker + D1, connected to GitHub in the dashboard, about 15 minutes).
 
 ## Repository layout
 
@@ -30,8 +30,8 @@ scripts/
   gen_test_vectors.py  independent Python reference implementation → test-vectors.json
 docs/
   DECISIONS.md  THREAT_MODEL.md  SELF_HOSTING.md
-  smoke-test.sh        post-deploy check used by the deploy workflows
-.github/workflows/  ci.yml, codeql.yml, deploy-staging.yml (main → staging), release.yml (tag → production + GitHub Release)
+  smoke-test.sh        post-deploy check: scripts/smoke-test.sh https://your-domain
+.github/workflows/  ci.yml, codeql.yml, release.yml (tag → signed Android app + GitHub Release)
 ```
 
 ## Local development
@@ -129,7 +129,7 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 - [x] Daily cron: tombstones (90 d), audit log (180 d), expired sessions/counters
 - [x] `spec/api.openapi.yaml` generated from Zod; CI fails on drift
 - [x] Worker tests (Vitest in workerd + local D1): auth, refresh reuse, sync conflicts, rate limits, lockout, deletion, cron, zero-knowledge DB dump audit
-- [x] Deploy guide ([docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)), setup/secret scripts, staging + release workflows with smoke test
+- [x] Deploy guide ([docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)), secret script, release workflow, smoke test
 
 ### Phase 2 exit checklist
 
@@ -155,7 +155,7 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 - [x] Add by camera (CameraX + on-device ML Kit), screenshot (Photo Picker), Google Authenticator export, `otpauth://` link or manual entry; edit, trash, restore, delete
 - [x] Room cache holds ciphertext only; WorkManager syncs in the background without the vault key
 - [x] `FLAG_SECURE`, sensitive clipboard flag + clearing after 30 s, auto-lock, `allowBackup=false` and no data extraction, HTTPS only, certificate pinning ([D-047](docs/DECISIONS.md))
-- [x] Signed APK + AAB built by `release.yml` from repository secrets, with `android-update.json`, SHA-256 sums and the signing-certificate fingerprint ([SELF_HOSTING.md](docs/SELF_HOSTING.md#d-android-releases-signed-apk-and-aab))
+- [x] Signed APK + AAB built by `release.yml` from repository secrets, with `android-update.json`, SHA-256 sums and the signing-certificate fingerprint ([SELF_HOSTING.md](docs/SELF_HOSTING.md#android-releases-signed-apk-and-aab))
 - [x] In-app updater (GitHub flavor): checks GitHub Releases, verifies SHA-256 and the signing certificate, installs with `PackageInstaller` ([D-019](docs/DECISIONS.md)); F-Droid flavor has none
 - [x] CI builds and lints the app and runs all Kotlin tests; Kotlin and Gradle errors show up as annotations
 

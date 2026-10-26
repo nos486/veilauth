@@ -25,11 +25,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src test",
     "test": "vitest run",
-    "db:migrate:local": "wrangler d1 migrations apply veilauth-dev --local",
-    "db:migrate:staging": "wrangler d1 migrations apply veilauth-staging --remote --env staging",
-    "db:migrate:production": "wrangler d1 migrations apply veilauth-production --remote --env production",
-    "deploy:staging": "wrangler deploy --env staging",
-    "deploy:production": "wrangler deploy --env production",
-    "secrets": "node scripts/generate-secrets.mjs"
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "wrangler d1 migrations apply DB --remote && wrangler deploy"
   }
 }

@@ -3,8 +3,6 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  # Redeploy production from main without cutting a release.
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,80 +12,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-production:
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
-      TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
-      TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
-    steps:
-      - name: Skip when Cloudflare is not configured
-        if: env.CLOUDFLARE_API_TOKEN == ''
-        run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; skipping production deploy."
-      - uses: actions/checkout@v5
-        if: env.CLOUDFLARE_API_TOKEN != ''
-      - uses: pnpm/action-setup@v4
-        if: env.CLOUDFLARE_API_TOKEN != ''
-      - uses: actions/setup-node@v5
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - if: env.CLOUDFLARE_API_TOKEN != ''
-        run: pnpm install --frozen-lockfile && pnpm build && pnpm test
-      - name: Configure Turnstile
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: apps/worker
-        # Optional (docs/DECISIONS.md D-049): set both to protect sign-up, or neither to leave it off.
-        run: |
-          if [ -z "$TURNSTILE_SITE_KEY" ] && [ -z "$TURNSTILE_SECRET_KEY" ]; then
-            echo "::notice::Turnstile is off in production (no TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY)."
-            exit 0
-          fi
-          if [ -z "$TURNSTILE_SITE_KEY" ] || [ -z "$TURNSTILE_SECRET_KEY" ]; then
-            echo "::error::Set both the TURNSTILE_SITE_KEY variable and the TURNSTILE_SECRET_KEY secret, or neither (docs/SELF_HOSTING.md, section C)."
-            exit 1
-          fi
-          node -e '
-            const fs = require("fs");
-            const s = fs.readFileSync("wrangler.jsonc", "utf8");
-            const marker = /("ENVIRONMENT": "production",[\s\S]*?"TURNSTILE_SITE_KEY": )""/;
-            if (!marker.test(s)) throw new Error("production TURNSTILE_SITE_KEY not found in wrangler.jsonc");
-            fs.writeFileSync("wrangler.jsonc", s.replace(marker, (_, head) => head + JSON.stringify(process.env.TURNSTILE_SITE_KEY)));
-          '
-      - name: Resolve D1 database id
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: apps/worker
-        # Creates veilauth-production on first deploy and fills its id into wrangler.jsonc (CI copy only).
-        run: node scripts/setup-cloudflare.mjs production
-      - name: Migrate D1
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: apps/worker
-        run: pnpm db:migrate:production
-      - name: Deploy
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: apps/worker
-        run: pnpm deploy:production
-      - name: Create missing secrets
-        if: env.CLOUDFLARE_API_TOKEN != ''
-        working-directory: apps/worker
-        # First deploy only: generates JWT/HMAC keys inside Cloudflare; existing secrets are never replaced.
-        run: node scripts/generate-secrets.mjs --env production --missing-only
-      - name: Set the Turnstile secret
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.TURNSTILE_SECRET_KEY != ''
-        working-directory: apps/worker
-        run: printf '%s' "$TURNSTILE_SECRET_KEY" | npx wrangler secret put TURNSTILE_SECRET_KEY --env production
-      - name: Smoke test
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.PRODUCTION_URL != ''
-        run: scripts/smoke-test.sh "$PRODUCTION_URL"
-
+  # Cloudflare deploys the Worker itself from main (docs/SELF_HOSTING.md); a tag only builds the
+  # release files.
   android-release:
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    environment: production
     outputs:
       built: ${{ steps.check.outputs.built }}
     env:
@@ -99,10 +27,10 @@ jobs:
     steps:
       - name: Check signing setup
         id: check
-        # The release key signs every future update (D-019); see docs/SELF_HOSTING.md, section D.
+        # The release key signs every future update (D-019); see docs/SELF_HOSTING.md, "Android releases".
         run: |
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$VEILAUTH_KEYSTORE_PASSWORD" ] || [ -z "$VEILAUTH_KEY_ALIAS" ] || [ -z "$VEILAUTH_KEY_PASSWORD" ]; then
-            echo "::warning::Android signing secrets are not set; this release has no APK (docs/SELF_HOSTING.md, section D)."
+            echo "::warning::Android signing secrets are not set; this release has no APK (docs/SELF_HOSTING.md, Android releases)."
             echo "built=false" >> "$GITHUB_OUTPUT"
           elif [ -z "$VEILAUTH_API_URL" ]; then
             echo "::warning::The PRODUCTION_URL variable is not set, so the app would not know its server; this release has no APK."
@@ -154,8 +82,7 @@ jobs:
           retention-days: 7
 
   github-release:
-    needs: [deploy-production, android-release]
-    if: always() && startsWith(github.ref, 'refs/tags/') && needs.deploy-production.result == 'success' && needs.android-release.result == 'success'
+    needs: android-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -168,7 +95,7 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p release
-          (cd apps/worker && npx wrangler deploy --dry-run --env production --outdir ../../release/worker-bundle >/dev/null)
+          (cd apps/worker && npx wrangler deploy --dry-run --outdir ../../release/worker-bundle >/dev/null)
           tar -C apps/web -czf release/web-assets.tar.gz dist
           cp apps/web/dist/SHA256SUMS release/web-SHA256SUMS
           tar -C release -czf release/worker-bundle.tar.gz worker-bundle && rm -rf release/worker-bundle
