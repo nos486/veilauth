@@ -38,7 +38,7 @@ jobs:
           else
             echo "built=true" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: steps.check.outputs.built == 'true'
       - uses: actions/setup-java@v5
         if: steps.check.outputs.built == 'true'
@@ -85,7 +85,7 @@ jobs:
     needs: android-release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
