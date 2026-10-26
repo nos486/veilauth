@@ -414,9 +414,21 @@ Sina dropped staging to keep the setup simple. `wrangler.jsonc` now describes a 
 `veilauth`, with one D1 database; `wrangler dev` and the tests use the same file with a local,
 simulated D1. Sina creates the Worker in the Cloudflare dashboard and connects it to the GitHub
 repository (Workers Builds), so every push to `main` builds and deploys, with D1 migrations
-applied before each deploy (`pnpm run deploy`). The GitHub Actions deploy jobs, the staging
+applied automatically (D-051). The GitHub Actions deploy jobs, the staging
 workflow, the `ENVIRONMENT` variable and the D1 setup script are gone. GitHub Actions still runs
 CI on every push, and a `v*` tag still builds the signed Android app and the GitHub Release.
 The web app keeps being served by the Worker (same origin, no CORS), so no Pages project is
 needed. The trade-off: changes reach production without a staging check, so CI (unit, Worker
 and E2E tests) is the only gate before users see them.
+
+## D-051 The Worker migrates its own database
+
+Sina asked for tables to be created on first run and upgraded automatically. `pnpm build` (and
+`pnpm run deploy`) bundles `migrations/*.sql` into `src/db/migrations.gen.ts`; CI fails if that
+file is stale, and a test checks it lists exactly the files in `migrations/`. On the first
+request each isolate handles (and before the daily cron), `ensureSchema` applies every pending
+migration in file order, each as one D1 batch (one transaction) together with its row in
+`d1_migrations`, the same table `wrangler d1 migrations apply` uses, so both ways agree. If two
+isolates race, the loser sees the migration recorded and carries on. Cost: one small query per
+isolate start. Migrations stay forward-only and must be safe to run against live data, since
+there is no separate migration step before the new code serves traffic.

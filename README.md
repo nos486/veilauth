@@ -54,7 +54,7 @@ pnpm --filter @zk2fa/shared openapi       # regenerate spec/api.openapi.yaml aft
 # run the API and the built web app locally (http://localhost:8787)
 pnpm build
 cd apps/worker
-node scripts/generate-secrets.mjs --dev && pnpm db:migrate:local && pnpm dev
+node scripts/generate-secrets.mjs --dev && pnpm dev
 
 # or hot-reload the web app (http://localhost:5173, proxies /api to the Worker on :8787)
 pnpm --filter @zk2fa/web dev
@@ -120,7 +120,7 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 
 ### Phase 1 exit checklist
 
-- [x] D1 schema + forward-only migrations (`apps/worker/migrations`), Drizzle models
+- [x] D1 schema + forward-only migrations (`apps/worker/migrations`, applied by the Worker itself, D-051), Drizzle models
 - [x] Auth: prelogin (fake salt), register, login, refresh rotation with reuse detection, logout, change password, two-step recovery, account deletion
 - [x] Sync: revisioned pull with tombstones, batched push with per-item conflicts, race-safe revision bump, 1000 items / 8 KB / 200 per push limits, purge horizon → full resync
 - [x] Devices list/revoke, `/time`, `/config`

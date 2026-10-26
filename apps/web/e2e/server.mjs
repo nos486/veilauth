@@ -1,4 +1,4 @@
-// Starts the Worker locally for the E2E run: fresh D1 state, migrations, dev secrets, built web app.
+// Starts the Worker locally for the E2E run: fresh D1 state, dev secrets, built web app.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,7 @@ if (!existsSync(fileURLToPath(new URL("../dist/index.html", import.meta.url)))) 
 }
 rmSync(new URL(state, `file://${worker}`), { recursive: true, force: true });
 if (!existsSync(`${worker}.dev.vars`)) run("node", ["scripts/generate-secrets.mjs", "--dev"]);
-run("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--local", "--persist-to", state]);
+// No migration step: the Worker creates its D1 schema on the first request (D-051).
 const child = spawn("npx", ["wrangler", "dev", "--port", port, "--persist-to", state], {
   cwd: worker,
   stdio: "inherit",

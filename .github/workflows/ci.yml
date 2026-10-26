@@ -35,6 +35,8 @@ jobs:
         run: pnpm --filter @zk2fa/shared openapi:check
       - name: Kotlin API models are up to date
         run: pnpm --filter @zk2fa/shared kotlin:check
+      - name: Bundled D1 migrations are up to date
+        run: pnpm --filter @zk2fa/worker migrations:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

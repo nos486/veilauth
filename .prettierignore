@@ -6,3 +6,4 @@ apps/android
 spec/api.openapi.yaml
 test-results
 playwright-report
+apps/worker/src/db/migrations.gen.ts

@@ -45,10 +45,8 @@ Dashboard → **Workers & Pages** → **Create** → **Import a repository** →
 | Build command  | `corepack enable && pnpm install --frozen-lockfile && pnpm build` |
 | Deploy command | `cd apps/worker && pnpm run deploy`                               |
 
-`pnpm run deploy` applies pending D1 migrations, then deploys. Click **Deploy**.
-
-> If the migration step fails with an authentication or permission error, go to the Worker →
-> **Settings** → **Build** → **API token**, add **Account · D1 · Edit**, then **Retry build**.
+Click **Deploy**. There is no migration step: the Worker creates its tables on the first request
+and applies new migrations by itself after each update (D-051).
 
 ## 5. Add the secrets
 
@@ -118,12 +116,12 @@ The app trusts the API host only with the certificate pins in `apps/android/app/
 
 ## Troubleshooting
 
-| Symptom                                                         | Fix                                                                                                  |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Every request returns `{"code":"INTERNAL"}`                     | Workers Logs shows `missing_secrets` with the names to add under **Variables and Secrets**.          |
-| Sign-up fails with `INTERNAL`; the log says `D1_SCHEMA_MISSING` | The migrations did not run: the deploy command must be `cd apps/worker && pnpm run deploy` (step 4). |
-| Build fails with `Couldn't find a D1 DB`                        | `database_id` in `wrangler.jsonc` is not your database's id (step 2).                                |
-| Register fails with `TURNSTILE_REQUIRED` / `TURNSTILE_FAILED`   | The widget hostname must match the app's domain, and both keys must belong to the same widget.       |
+| Symptom                                                       | Fix                                                                                            |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Every request returns `{"code":"INTERNAL"}`                   | Workers Logs shows `missing_secrets` with the names to add under **Variables and Secrets**.    |
+| The log says `D1_SCHEMA_MISSING`                              | The automatic migration failed; the `unhandled` log line next to it says why.                  |
+| Build fails with `Couldn't find a D1 DB`                      | `database_id` in `wrangler.jsonc` is not your database's id (step 2).                          |
+| Register fails with `TURNSTILE_REQUIRED` / `TURNSTILE_FAILED` | The widget hostname must match the app's domain, and both keys must belong to the same widget. |
 
 ## Local development
 
@@ -131,7 +129,6 @@ The app trusts the API host only with the certificate pins in `apps/android/app/
 pnpm install && pnpm build                 # repo root
 cd apps/worker
 node scripts/generate-secrets.mjs --dev    # writes .dev.vars (git-ignored)
-pnpm db:migrate:local
 pnpm dev                                   # http://localhost:8787
 ```
 
@@ -146,6 +143,7 @@ Locally, D1 is simulated and Turnstile is off.
   ciphertext, so a backup is useless without users' passwords.
 - **Maintenance cron:** runs daily at 03:17 UTC. It purges tombstones older than 90 days and
   audit entries older than 180 days, and cleans up expired sessions and counters.
-- **Upgrades:** push to `main`. The deploy command applies D1 migrations (forward-only) before
-  every deploy.
+- **Upgrades:** push to `main`. The new version applies pending D1 migrations (forward-only,
+  each in one transaction) on its first request. To change the schema, add the next
+  `apps/worker/migrations/NNNN_name.sql` and update `src/db/schema.ts`; `pnpm build` bundles it.
 - **Limits:** 1000 items per user, 8 KB per item, 200 changes per sync push.

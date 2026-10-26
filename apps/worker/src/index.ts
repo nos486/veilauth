@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { routePath } from "hono/route";
 import type { AppEnv } from "./app-env.js";
 import { runMaintenance } from "./cron.js";
+import { ensureSchema } from "./db/migrate.js";
 import * as schema from "./db/schema.js";
 import type { Env } from "./env.js";
 import { ApiError } from "./lib/errors.js";
@@ -25,6 +26,7 @@ api.use(async (c, next) => {
     logError("missing_secrets", { missing, path: c.req.path });
     throw new ApiError("INTERNAL");
   }
+  await ensureSchema(c.env.DB);
   const ip = c.req.header("cf-connecting-ip") ?? "0.0.0.0";
   c.set("ip", ip);
   c.set("ipHash", await pseudonym(c.env.IP_HASH_SECRET, `ip:${ip}`));
@@ -67,7 +69,9 @@ app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 export default {
   fetch: app.fetch,
   scheduled(_controller, env, ctx) {
-    ctx.waitUntil(runMaintenance(drizzle(env.DB, { schema }), Date.now()));
+    ctx.waitUntil(
+      ensureSchema(env.DB).then(() => runMaintenance(drizzle(env.DB, { schema }), Date.now())),
+    );
   },
 } satisfies ExportedHandler<Env>;
 
