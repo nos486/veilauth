@@ -16,7 +16,15 @@ import { sync } from "./routes/sync.js";
 
 const api = new Hono<AppEnv>();
 
+const REQUIRED_SECRETS = ["JWT_PRIVATE_JWK", "FAKE_SALT_SECRET", "IP_HASH_SECRET"] as const;
+
 api.use(async (c, next) => {
+  const missing = REQUIRED_SECRETS.filter((name) => !c.env[name]);
+  if (missing.length > 0) {
+    // Names only: tells the operator which secret to add in the dashboard (docs/SELF_HOSTING.md).
+    logError("missing_secrets", { missing, path: c.req.path });
+    throw new ApiError("INTERNAL");
+  }
   const ip = c.req.header("cf-connecting-ip") ?? "0.0.0.0";
   c.set("ip", ip);
   c.set("ipHash", await pseudonym(c.env.IP_HASH_SECRET, `ip:${ip}`));
@@ -38,7 +46,12 @@ const onError: Parameters<typeof api.onError>[0] = (err, c) => {
     return c.json({ code: err.code, message: err.message }, err.status);
   }
   // Log only the error class and route; messages may contain SQL or request fragments.
-  logError("unhandled", { name: err.name, path: routePath(c, -1) });
+  const schemaMissing = /no such table/.test(`${err.message} ${String(err.cause)}`);
+  logError("unhandled", {
+    name: err.name,
+    path: routePath(c, -1),
+    ...(schemaMissing ? { hint: "D1_SCHEMA_MISSING" as const } : {}),
+  });
   return c.json({ code: "INTERNAL", message: "Internal error." }, 500);
 };
 api.onError(onError);

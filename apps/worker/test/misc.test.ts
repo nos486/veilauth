@@ -214,3 +214,23 @@ describe("Turnstile", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("setup errors", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("logs the names of missing secrets, never values", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { default: worker } = await import("../src/index.js");
+    const res = await worker.fetch(
+      new Request("https://x/api/v1/config"),
+      { ...env, IP_HASH_SECRET: "" },
+      { waitUntil: () => undefined, passThroughOnException: () => undefined } as never,
+    );
+    expect(res.status).toBe(500);
+    const line = JSON.parse(String(logged.mock.calls[0]?.[0])) as Record<string, unknown>;
+    expect(line).toMatchObject({ event: "missing_secrets", missing: ["IP_HASH_SECRET"] });
+    expect(JSON.stringify(line)).not.toContain(env.JWT_PRIVATE_JWK);
+  });
+});
