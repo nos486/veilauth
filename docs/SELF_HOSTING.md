@@ -118,12 +118,13 @@ The app trusts the API host only with the certificate pins in `apps/android/app/
 
 ## Troubleshooting
 
-| Symptom                                                       | Fix                                                                                            |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Every request returns `{"code":"INTERNAL"}`                   | A secret is missing. Check the Worker's **Variables and Secrets**.                             |
-| Build fails with `Couldn't find a D1 DB`                      | `database_id` in `wrangler.jsonc` is not your database's id (step 2).                          |
-| `no such table: users`                                        | The migrations did not run: check the deploy command (step 4) and the build log.               |
-| Register fails with `TURNSTILE_REQUIRED` / `TURNSTILE_FAILED` | The widget hostname must match the app's domain, and both keys must belong to the same widget. |
+| Symptom                                                         | Fix                                                                                                  |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Every request returns `{"code":"INTERNAL"}`                     | Workers Logs shows `missing_secrets` with the names to add under **Variables and Secrets**.          |
+| Sign-up fails with `INTERNAL`; the log says `D1_SCHEMA_MISSING` | The migrations did not run: the deploy command must be `cd apps/worker && pnpm run deploy` (step 4). |
+| Build fails with `Couldn't find a D1 DB`                        | `database_id` in `wrangler.jsonc` is not your database's id (step 2).                                |
+| `no such table: users`                                          | The migrations did not run: check the deploy command (step 4) and the build log.                     |
+| Register fails with `TURNSTILE_REQUIRED` / `TURNSTILE_FAILED`   | The widget hostname must match the app's domain, and both keys must belong to the same widget.       |
 
 ## Local development
 
