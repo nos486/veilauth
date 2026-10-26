@@ -161,6 +161,16 @@ export function Card({ title, children }: { title: string; children: ReactNode }
   );
 }
 
+/** Titled group of controls on the settings screen. */
+export function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 rounded-xl bg-white p-4 ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      <h2 className="text-base font-bold text-slate-900 dark:text-white">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 /** Page frame for the unlocked screens: header with an optional back button. */
 export function Page({
   title,

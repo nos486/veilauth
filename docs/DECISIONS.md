@@ -432,3 +432,21 @@ migration in file order, each as one D1 batch (one transaction) together with it
 isolates race, the loser sees the migration recorded and carries on. Cost: one small query per
 isolate start. Migrations stay forward-only and must be safe to run against live data, since
 there is no separate migration step before the new code serves traffic.
+
+## D-052 Encrypted backup files
+
+Sina asked for users to back up their own data and restore it. Settings → Backup downloads a
+`veilauth-backup-YYYY-MM-DD.json` file and restores one (spec/crypto.md §9).
+
+- The file has its own password, chosen at export with the same strength rule as the master
+  password (10 characters, zxcvbn score 3), because the file can be attacked offline wherever it
+  ends up. It is not tied to the account, so it also works after an account is deleted, in a new
+  account, or (later) in the Android app.
+- No new primitive: Argon2id (kdf_version 1 params) → HKDF "zk2fa/v1/backup" → the usual
+  envelope, with the file's salt in the AAD. Encryption and decryption run in the crypto worker;
+  the backup key never leaves it.
+- Version 1 holds tokens only (not trash, folders or device settings). Restore is additive:
+  it shows how many codes the file holds, then adds the ones that are not in the vault yet as new
+  items, so restoring twice changes nothing and nothing in the vault is overwritten or deleted.
+- The independent Python implementation produces the `backup` test vectors; the TypeScript code
+  must reproduce the files byte for byte. Android restore follows the same spec.

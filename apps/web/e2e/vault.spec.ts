@@ -8,14 +8,15 @@ import QRCode from "qrcode";
 
 /**
  * Build spec §8.1 web E2E: sign up → add by QR image → second browser sees the code → change
- * password → the old session dies. Then the zero-knowledge audit: a dump of D1 contains none of
- * the token data or passwords.
+ * password → the old session dies → encrypted backup and restore. Then the zero-knowledge audit:
+ * a dump of D1 contains none of the token data or passwords.
  */
 
 const run = Date.now().toString(36);
 const EMAIL = `e2e-${run}@example.test`;
 const PASSWORD = `Velvet orbit ${run} lantern quarry!`;
 const NEW_PASSWORD = `Granite meadow ${run} cobalt whisper?`;
+const BACKUP_PASSWORD = `Saffron ${run} tundra beacon parcel`;
 const ISSUER = `Zyqfor ${run}`;
 const ACCOUNT = `kestrel-${run}@example.test`;
 const SECRET = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // gitleaks:allow (RFC 6238 test secret)
@@ -179,6 +180,35 @@ test("sign up, add by QR, sync to a second browser, change password, zero-knowle
   await logIn(b.page, NEW_PASSWORD);
   await expect(b.page.getByRole("listitem").filter({ hasText: ISSUER })).toBeVisible();
 
+  // ---- encrypted backup: download, then restore it (the code is already there, so it is skipped)
+  await b.page.getByRole("button", { name: "Settings" }).click();
+  const dialog = b.page.getByRole("dialog");
+  await b.page.getByRole("button", { name: "Download backup" }).click();
+  await dialog.getByLabel("Backup password").fill(BACKUP_PASSWORD);
+  await dialog.getByLabel("Repeat the password").fill(BACKUP_PASSWORD);
+  await expectAccessible(b.page, "backup (dark)");
+  const downloadEvent = b.page.waitForEvent("download", { timeout: 60_000 });
+  await dialog.getByRole("button", { name: "Encrypt and download" }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toMatch(/^veilauth-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  const backupPath = await download.path();
+  const backup = readFileSync(backupPath, "utf8");
+  expect(JSON.parse(backup)).toMatchObject({ format: "veilauth-backup", version: 1 });
+  for (const needle of [ISSUER, ACCOUNT, SECRET]) expect(backup).not.toContain(needle);
+  await dialog.getByRole("button", { name: "Done" }).click();
+
+  await b.page.getByRole("button", { name: "Restore from backup" }).click();
+  await dialog.getByTestId("backup-file").setInputFiles(backupPath);
+  await dialog.getByLabel("Backup password").fill(`${BACKUP_PASSWORD}x`);
+  await dialog.getByRole("button", { name: "Open backup" }).click();
+  await expect(dialog.getByText("Wrong password.")).toBeVisible({ timeout: 60_000 });
+  await dialog.getByLabel("Backup password").fill(BACKUP_PASSWORD);
+  await dialog.getByRole("button", { name: "Open backup" }).click();
+  await expect(dialog.getByText(/holds 1 code\(s\)/)).toBeVisible({ timeout: 60_000 });
+  await dialog.getByRole("button", { name: "Add codes to my vault" }).click();
+  await expect(dialog.getByText("Added 0 code(s). 1 were already in your vault.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Done" }).click();
+
   // ---- reload locks; unlock works with the new password from the offline cache
   await a.page.reload();
   await expect(a.page.getByRole("heading", { name: "Unlock your vault" })).toBeVisible();
@@ -201,8 +231,14 @@ test("sign up, add by QR, sync to a second browser, change password, zero-knowle
   const haystack = dump.toLowerCase();
   // The e-mail is the only plaintext identifier by design; finding it proves the scan sees the data.
   expect(haystack.includes(EMAIL.toLowerCase())).toBe(true);
-  const leaked = [ISSUER, ACCOUNT, SECRET, PASSWORD, NEW_PASSWORD, words.join(" ")].filter(
-    (needle) => haystack.includes(needle.toLowerCase()),
-  );
+  const leaked = [
+    ISSUER,
+    ACCOUNT,
+    SECRET,
+    PASSWORD,
+    NEW_PASSWORD,
+    BACKUP_PASSWORD,
+    words.join(" "),
+  ].filter((needle) => haystack.includes(needle.toLowerCase()));
   expect(leaked).toEqual([]);
 });

@@ -136,4 +136,21 @@ describe("crypto worker handler", () => {
       }),
     ).rejects.toMatchObject({ code: "KDF_PARAMS_REJECTED" });
   });
+
+  it("writes a backup that opens with its password only, without a vault key", async () => {
+    const a = new DirectCryptoClient();
+    const contents = { exportedAt: 1_700_000_000_000, tokens: [token] };
+    const { file } = await a.call("createBackup", { password: "backup pass 1", contents });
+    expect(JSON.parse(file)).toMatchObject({ format: "veilauth-backup", version: 1 });
+    expect(file).not.toContain(token.secret);
+
+    const b = new DirectCryptoClient();
+    expect(await b.call("openBackup", { password: "backup pass 1", file })).toEqual(contents);
+    await expect(b.call("openBackup", { password: "backup pass 2", file })).rejects.toMatchObject({
+      code: "DECRYPT_FAILED",
+    });
+    await expect(
+      b.call("openBackup", { password: "backup pass 1", file: "{}" }),
+    ).rejects.toMatchObject({ code: "INVALID_BACKUP" });
+  });
 });

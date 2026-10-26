@@ -1,10 +1,10 @@
-import type { TokenItem } from "@zk2fa/crypto";
+import type { BackupContents, TokenItem } from "@zk2fa/crypto";
 import type { SessionResponse } from "@zk2fa/shared";
 import { ApiClient, ApiError, type WithLock } from "../api/client";
 import type { CryptoClient } from "../crypto/client";
 import type { RegistrationKeys } from "../crypto/protocol";
 import { clearClipboard } from "../lib/clipboard";
-import { compareTokens, TRASH_RETENTION_MS, type VaultToken } from "../lib/tokens";
+import { compareTokens, tokensToRestore, TRASH_RETENTION_MS, type VaultToken } from "../lib/tokens";
 import { uuidv7 } from "../lib/uuid";
 import { initialAppState, type Notice, useApp } from "../store/app";
 import type { LocalStore, StoredSession } from "../store/db";
@@ -306,6 +306,48 @@ export class VaultController {
     await this.store.wipe();
     this.session = null;
     await this.lock("accountDeleted");
+  }
+
+  // ------------------------------------------------------------------ backup
+
+  /** Encrypts every token outside the trash into a backup file (spec/crypto.md §9). */
+  async createBackup(password: string): Promise<string> {
+    this.requireUnlocked();
+    const tokens = useApp
+      .getState()
+      .tokens.filter((t) => t.value.trashedAt === null)
+      .map((t) => t.value);
+    const { file } = await this.crypto.call("createBackup", {
+      password,
+      contents: { exportedAt: Date.now(), tokens },
+    });
+    return file;
+  }
+
+  /** Decrypts a backup file for a preview; nothing is added to the vault yet. */
+  async openBackup(file: string, password: string): Promise<BackupContents> {
+    this.requireUnlocked();
+    return this.crypto.call("openBackup", { password, file });
+  }
+
+  /**
+   * Adds the backed-up tokens as new items. Tokens already in the vault (same issuer, account and
+   * secret) are skipped, so restoring the same file twice changes nothing.
+   */
+  async restoreBackup(tokens: readonly TokenItem[]): Promise<{ added: number; skipped: number }> {
+    const s = this.requireUnlocked();
+    const fresh = tokensToRestore(tokens, useApp.getState().tokens, uuidv7);
+    if (fresh.length > 0) {
+      const encrypted = await this.crypto.call("encrypt", {
+        userId: s.userId,
+        items: fresh.map((t) => ({ id: t.id, kind: "token" as const, value: t.value })),
+      });
+      for (const e of encrypted)
+        await this.store.queueChange({ id: e.id, kind: "token", blob: e.blob });
+      await this.refreshView();
+      this.scheduleSync();
+    }
+    return { added: fresh.length, skipped: tokens.length - fresh.length };
   }
 
   currentDeviceId(): string | null {

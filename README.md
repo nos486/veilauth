@@ -104,7 +104,7 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 | 1     | Worker: D1 schema, auth, sync, devices, rate limits, OpenAPI, staging deploy, release workflow                                          | ✅ done |
 | 2     | Web MVP: signup + recovery key, unlock, vault CRUD, QR/URI/manual add, sync, auto-lock, PWA auto-update                                 | ✅ done |
 | 3     | Android MVP: Kotlin crypto/otp on the shared vectors, biometric unlock, QR, sync, FLAG_SECURE, signed APK/AAB releases + in-app updater | ✅ done |
-| 4     | Importers, encrypted backup, trash, folders, icons, password change, recovery, account deletion                                         | next    |
+| 4     | Importers, encrypted backup, trash, folders, icons, password change, recovery, account deletion                                         | started |
 | 5     | Passkeys/PRF, widget, QS tile, Wear OS, Autofill, F-Droid flavor                                                                        |         |
 
 ### Phase 0 exit checklist
@@ -158,6 +158,10 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 - [x] Signed APK + AAB built by `release.yml` from repository secrets, with `android-update.json`, SHA-256 sums and the signing-certificate fingerprint ([SELF_HOSTING.md](docs/SELF_HOSTING.md#android-releases-signed-apk-and-aab))
 - [x] In-app updater (GitHub flavor): checks GitHub Releases, verifies SHA-256 and the signing certificate, installs with `PackageInstaller` ([D-019](docs/DECISIONS.md)); F-Droid flavor has none
 - [x] CI builds and lints the app and runs all Kotlin tests; Kotlin and Gradle errors show up as annotations
+
+### Phase 4 progress
+
+- [x] Encrypted backup: Settings → Backup downloads a password-protected file and restores it into any account, skipping codes already in the vault (spec/crypto.md §9, [D-052](docs/DECISIONS.md)). Web app; Android follows.
 
 ### Acceptance criteria (spec §8.4)
 

@@ -616,6 +616,162 @@
       "saltB64": "EBESExQVFhcYGRobHB0eHw"
     }
   ],
+  "backup": {
+    "cases": [
+      {
+        "name": "three-tokens",
+        "password": "backup password 1",
+        "saltHex": "c1c2c3c4c5c6c7c8c9cacbcccdcecfd0",
+        "nonceHex": "d1d2d3d4d5d6d7d8d9dadbdc",
+        "contents": {
+          "exportedAt": 1760001000000,
+          "tokens": [
+            {
+              "type": "totp",
+              "issuer": "GitHub",
+              "account": "alice@example.com",
+              "secret": "JBSWY3DPEHPK3PXP",
+              "algorithm": "SHA1",
+              "digits": 6,
+              "period": 30,
+              "counter": 0,
+              "iconId": "github",
+              "folderId": null,
+              "tags": [
+                "work"
+              ],
+              "notes": "",
+              "favorite": true,
+              "createdAt": 1760000000000,
+              "trashedAt": null
+            },
+            {
+              "type": "hotp",
+              "issuer": "Bänk 銀行",
+              "account": "bob",
+              "secret": "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+              "algorithm": "SHA512",
+              "digits": 8,
+              "period": 30,
+              "counter": 42,
+              "iconId": null,
+              "folderId": "0192d5f1-0000-7000-8000-000000000004",
+              "tags": [
+                "bank",
+                "ünï"
+              ],
+              "notes": "line1\nline2\t\"quoted\" back\\slash \u0001 🔐  ",
+              "favorite": false,
+              "createdAt": 1760000000000,
+              "trashedAt": null
+            },
+            {
+              "type": "steam",
+              "issuer": "Steam",
+              "account": "gaben",
+              "secret": "GEZDGNBVGY3TQOJQ",
+              "algorithm": "SHA1",
+              "digits": 5,
+              "period": 30,
+              "counter": 0,
+              "iconId": "steam",
+              "folderId": null,
+              "tags": [],
+              "notes": "",
+              "favorite": false,
+              "createdAt": 1760000000000,
+              "trashedAt": 1760000500000
+            },
+            {
+              "type": "totp",
+              "issuer": "LongNotes",
+              "account": "carol",
+              "secret": "MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPI",
+              "algorithm": "SHA256",
+              "digits": 7,
+              "period": 60,
+              "counter": 0,
+              "iconId": null,
+              "folderId": null,
+              "tags": [],
+              "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+              "favorite": false,
+              "createdAt": 1760000000000,
+              "trashedAt": null
+            }
+          ]
+        },
+        "aad": "zk2fa/v1/backup|wcLDxMXGx8jJysvMzc7P0A",
+        "backupKeyHex": "65e8401d7d3222141931487665363ab652500aacd9e016fe026a62fed60ece2b",
+        "paddedLength": 1536,
+        "file": "{\"data\":\"AdHS09TV1tfY2drb3AhIAFWq_ql56a-6oMs5joX-U3eGkssEY7iDaJk4Qi5sCE2g9sRaFx0cSGLcnYW4OXtDkyjIatG78pyG5COwUtgJ9p5LrbaCykNCoI1-nqHihoYM69Ow3cwiNtQGMSOOqyoe-Yq9Dtscvb-7tkGg_8NtW13smaAbdDadrfWsM-xLEVXOK7PgnDgQhVljQht6eefjvX8buxr_Qmr53Pr_Af2kRxXYRYAEzgPEI3WK--kTHPGKX1rZC3IDtHL9b119uwmGmEJAKV9bEMBqRZC0-IZNIjn3ssQ8akCQ1tRltrA6AEw5uiQ0IlWD1aNd6I7I6q8kdRnrc04s5sx6POINYEE513-wECnJuN70qWo9TYPIHmy5KtBbOkWyhjin92DQMoetu1P0939qb2E_YeYXUZekjkZsD7wugwpaX6SHPvdpQv1e_GWTR4FCZTul-90UEHThamfLsKIhN1MMoB7wLo_zt6GklRTG09AhqOB5ECKNVD5QuhI48G6fLUWc0bo8zA3vcbvGv3LGhJ3iXJ6ygu8TdCAwYQVp2fulENAAFCfQ6QHPcfzJ5iy10-v0-2PNazr6GVt08rgIYYJjrVvfW6TjMKHA-3omlQJEm-Fs3xPFZQLGSWSNRB_2T68XfoQnGm8z27WYrnoDYbbUi_zUq9h26GvhJawnZ-ggJGP1S86I_xmg9xsYzbyFPMYNu85Yzk9mO1rWgYevHvH-qrz3n9mo7t48z1XJi3u7Fadzhk9jFhk2YH9KAYx2tCi-bgBaunuToMya-kEl18IKvXO5OKUwFKfdLhzOfXLNZEFVmstmagJGuhbtYHXqfzjzd1-co1MRsdPR9rfQe8FfKW6oebe66YCriM8XGg-dxbNMc6qNkejUWbWkTAqJ1rAJv1FDAH6iNzDjOnX5Tvr5uBX88IQLnVOViiRlK9W18k1qQnJy_jR2Hrf3csus21g7ihBjr1KSJjBU9sKFUPwEafCwHwYcTt2kM3Gy6XcFY0teLle_W2JyGzA-9F5WGjXikK7AJ8rUEAQS-qMjAngA6KvLS5nLyg4E15Jcl408SL9oYbzWBIFU-lkrY6erRIa0bAhAw6enSAwUVcVFk_msCu8WVIYL4YVGzyjXtOHzA1yl5q5D93AUSvkh-Xbep-zph4DtMlKUx8Bp3tw2w4goG5i_vVujwjRXc2m-PI68L9YzJpOEkWU0WTApUgq5CuwzeqereV_V7quqtpHOQyJHFfiJet6CTCpfWD9ObnxwyzPv9KRBgtmsVgcyQHPotUcX0YdVTH1hlWMPruNZ0g4pr4MXePeodfL7mZCY2HXql342XwMK9Ta7U9KQCzMYqjgZbGvr-SMLq7i3q_FZbT92lWDWShVPbftXWIzscHFf7EpudahMFszWcFGROYpojqndT3qSYGOa8tciaeCQ6ZJmKckMvuNJFMQ6r-hJdBibyuF4IC8YZR6z734O0bSmjFvBG6dwoiZZle2MtLQYWmuzUxA-mjSuw_ZOeDEn00QP4u2zb_0n9TgZdtKHzFke9zGAI1j1z6m2Mis-79jl3RpI8rbpPyO_uZhVnNL0820Oq8MKYjRPnchbcM8yt85_KZ7oH01WhqqiHc-us3O5ce7Vq2fr5nIl3dfiyTP6vuhbuzbcYzk0Bw_Eq_Lfds-hKqgKFZBSk7b33-ha3OBT2hF7rGy2OJGEQYsBJB3LlXEw-H2A7Df4HZ-r2CnlwlABhp4YAHqiNWIfvAHX3oSzZfdbtYy3amCsQ_WsVOGPvAkI9UI5ci9mW-bBEj7j8VKFyzgfaFFbItL_ktzYnwbOxquvxq_dVk4JCv7tH3mVtI0UmuzdrTOKRoqW84naOBO8cDa4krutVD7CztXS5TlkClusV7IuIz8H3b4Tto4c1Yi0X27DrcaD1_PoocGT1QG-MBimwygyGMTW4RIyMsp3iNrfyGCv81KHx_dfPC1gCLXOgYbHyyNcur7PbeAMaYt7y0aQLON5B-3_6IKH5vgkBUISWDFSRgHdreZdyP9KXNPJuRsx4OK5qAXNaBNXJwLxd_oGMaqSN_8a-8ghjkFNlu3rHHZfD_8\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"wcLDxMXGx8jJysvMzc7P0A\"},\"version\":1}"
+      },
+      {
+        "name": "empty-nfkc-password",
+        "password": "Ｐässwörd ﬁ",
+        "saltHex": "c2c3c4c5c6c7c8c9cacbcccdcecfd0d1",
+        "nonceHex": "d2d3d4d5d6d7d8d9dadbdcdd",
+        "contents": {
+          "exportedAt": 0,
+          "tokens": []
+        },
+        "aad": "zk2fa/v1/backup|wsPExcbHyMnKy8zNzs_Q0Q",
+        "backupKeyHex": "40e81cee228ca738e2f4827d06ae6388791d20dd2bfd1364a4f74900d1b30140",
+        "paddedLength": 256,
+        "file": "{\"data\":\"AdLT1NXW19jZ2tvc3cL7GazW1FLN63pYykjQszK-9K9YpQSQbmopWohAGFynThSmbkLwwHhlJ8iYqBAPSzdUr7Zn4D4tmJgR0wCOD0ynRmIX1DCfHZDU1inZEhMgj1MVlRm9TxLhdr7otb3n65qWKxuuTs3Fkdf9d_8gQIQeBLXNH6tfg8-DlMpRFtZhyz5Vg6MQphXydiZIHCSt-zqcAHPvmsXZ0-yeuXkw58375ZIw_NX1wh56RSZp9CgsH_rzNxeJ6L2MZ-VtjxICtpccPNmOivI8OqYW1PVlg8zxutJoYlnBqnkxearDWty85DMWq7ZtmcsdDwShjcLxBtZHDiFzhy4JVgz6WpvUJaykQvFOoRUD_KM0rSLN1RSA\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"wsPExcbHyMnKy8zNzs_Q0Q\"},\"version\":1}"
+      }
+    ],
+    "rejected": [
+      {
+        "name": "wrong-password",
+        "password": "Ｐässwörd ﬁ!",
+        "file": "{\"data\":\"AdLT1NXW19jZ2tvc3cL7GazW1FLN63pYykjQszK-9K9YpQSQbmopWohAGFynThSmbkLwwHhlJ8iYqBAPSzdUr7Zn4D4tmJgR0wCOD0ynRmIX1DCfHZDU1inZEhMgj1MVlRm9TxLhdr7otb3n65qWKxuuTs3Fkdf9d_8gQIQeBLXNH6tfg8-DlMpRFtZhyz5Vg6MQphXydiZIHCSt-zqcAHPvmsXZ0-yeuXkw58375ZIw_NX1wh56RSZp9CgsH_rzNxeJ6L2MZ-VtjxICtpccPNmOivI8OqYW1PVlg8zxutJoYlnBqnkxearDWty85DMWq7ZtmcsdDwShjcLxBtZHDiFzhy4JVgz6WpvUJaykQvFOoRUD_KM0rSLN1RSA\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"wsPExcbHyMnKy8zNzs_Q0Q\"},\"version\":1}",
+        "error": "DECRYPT_FAILED"
+      },
+      {
+        "name": "salt-swapped",
+        "password": "Ｐässwörd ﬁ",
+        "file": "{\"data\":\"AdLT1NXW19jZ2tvc3cL7GazW1FLN63pYykjQszK-9K9YpQSQbmopWohAGFynThSmbkLwwHhlJ8iYqBAPSzdUr7Zn4D4tmJgR0wCOD0ynRmIX1DCfHZDU1inZEhMgj1MVlRm9TxLhdr7otb3n65qWKxuuTs3Fkdf9d_8gQIQeBLXNH6tfg8-DlMpRFtZhyz5Vg6MQphXydiZIHCSt-zqcAHPvmsXZ0-yeuXkw58375ZIw_NX1wh56RSZp9CgsH_rzNxeJ6L2MZ-VtjxICtpccPNmOivI8OqYW1PVlg8zxutJoYlnBqnkxearDWty85DMWq7ZtmcsdDwShjcLxBtZHDiFzhy4JVgz6WpvUJaykQvFOoRUD_KM0rSLN1RSA\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"w8TFxsfIycrLzM3Oz9DR0g\"},\"version\":1}",
+        "error": "DECRYPT_FAILED"
+      },
+      {
+        "name": "not-json",
+        "password": "Ｐässwörd ﬁ",
+        "file": "veilauth",
+        "error": "INVALID_BACKUP"
+      },
+      {
+        "name": "wrong-format",
+        "password": "Ｐässwörd ﬁ",
+        "file": "{\"data\":\"AdLT1NXW19jZ2tvc3cL7GazW1FLN63pYykjQszK-9K9YpQSQbmopWohAGFynThSmbkLwwHhlJ8iYqBAPSzdUr7Zn4D4tmJgR0wCOD0ynRmIX1DCfHZDU1inZEhMgj1MVlRm9TxLhdr7otb3n65qWKxuuTs3Fkdf9d_8gQIQeBLXNH6tfg8-DlMpRFtZhyz5Vg6MQphXydiZIHCSt-zqcAHPvmsXZ0-yeuXkw58375ZIw_NX1wh56RSZp9CgsH_rzNxeJ6L2MZ-VtjxICtpccPNmOivI8OqYW1PVlg8zxutJoYlnBqnkxearDWty85DMWq7ZtmcsdDwShjcLxBtZHDiFzhy4JVgz6WpvUJaykQvFOoRUD_KM0rSLN1RSA\",\"format\":\"other\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"wsPExcbHyMnKy8zNzs_Q0Q\"},\"version\":1}",
+        "error": "INVALID_BACKUP"
+      },
+      {
+        "name": "version-2",
+        "password": "Ｐässwörd ﬁ",
+        "file": "{\"data\":\"AdLT1NXW19jZ2tvc3cL7GazW1FLN63pYykjQszK-9K9YpQSQbmopWohAGFynThSmbkLwwHhlJ8iYqBAPSzdUr7Zn4D4tmJgR0wCOD0ynRmIX1DCfHZDU1inZEhMgj1MVlRm9TxLhdr7otb3n65qWKxuuTs3Fkdf9d_8gQIQeBLXNH6tfg8-DlMpRFtZhyz5Vg6MQphXydiZIHCSt-zqcAHPvmsXZ0-yeuXkw58375ZIw_NX1wh56RSZp9CgsH_rzNxeJ6L2MZ-VtjxICtpccPNmOivI8OqYW1PVlg8zxutJoYlnBqnkxearDWty85DMWq7ZtmcsdDwShjcLxBtZHDiFzhy4JVgz6WpvUJaykQvFOoRUD_KM0rSLN1RSA\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"wsPExcbHyMnKy8zNzs_Q0Q\"},\"version\":2}",
+        "error": "INVALID_BACKUP"
+      },
+      {
+        "name": "data-not-envelope",
+        "password": "Ｐässwörd ﬁ",
+        "file": "{\"data\":\"AA\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"wsPExcbHyMnKy8zNzs_Q0Q\"},\"version\":1}",
+        "error": "INVALID_BACKUP"
+      },
+      {
+        "name": "weak-kdf",
+        "password": "Ｐässwörd ﬁ",
+        "file": "{\"data\":\"AdLT1NXW19jZ2tvc3cL7GazW1FLN63pYykjQszK-9K9YpQSQbmopWohAGFynThSmbkLwwHhlJ8iYqBAPSzdUr7Zn4D4tmJgR0wCOD0ynRmIX1DCfHZDU1inZEhMgj1MVlRm9TxLhdr7otb3n65qWKxuuTs3Fkdf9d_8gQIQeBLXNH6tfg8-DlMpRFtZhyz5Vg6MQphXydiZIHCSt-zqcAHPvmsXZ0-yeuXkw58375ZIw_NX1wh56RSZp9CgsH_rzNxeJ6L2MZ-VtjxICtpccPNmOivI8OqYW1PVlg8zxutJoYlnBqnkxearDWty85DMWq7ZtmcsdDwShjcLxBtZHDiFzhy4JVgz6WpvUJaykQvFOoRUD_KM0rSLN1RSA\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":32768,\"p\":1,\"t\":3},\"salt\":\"wsPExcbHyMnKy8zNzs_Q0Q\"},\"version\":1}",
+        "error": "KDF_PARAMS_REJECTED"
+      },
+      {
+        "name": "tokens-not-array",
+        "password": "Ｐässwörd ﬁ",
+        "file": "{\"data\":\"AdTV1tfY2drb3N3e3zMJ6R-mt3anu8EpabIno6EGIHWa_uO32sN4ixMSCYi2eLBJVcinpctufCnQOFLiW3Qkv0s5fVIR1uSTZ76PvllIgghv8ALyjG1zHiblt9OlDZtR-GocLzSr-ZPVdaZ0jTBTWRlQbOc2dspqOqn9ccZopRmMfmkMreVhulABp9scpTMFaou8_e8WjhPr7gLXf4HSv3ibx28Z0FJdivmmWMXdpuYRgqpusK34VnTGzMbKW0NsNhrk3jKQHPkEun5E06NunbKyqSc3iBvbtSK5ovd3rCvv2iEQZxO4gZYz0zpf0FeOQElt4v1c7A607nbnZSr3wLziADp0LuEdzVnmcQKWgVr__obLEw8wIhryy8Kr\",\"format\":\"veilauth-backup\",\"kdf\":{\"alg\":\"argon2id\",\"params\":{\"m\":65536,\"p\":1,\"t\":3},\"salt\":\"xMXGx8jJysvMzc7P0NHS0w\"},\"version\":1}",
+        "error": "INVALID_BACKUP"
+      }
+    ]
+  },
   "otp": {
     "hotp": [
       {

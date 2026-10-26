@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { BackupContents } from "../src/index.js";
 
 const path = fileURLToPath(new URL("../../../spec/test-vectors.json", import.meta.url));
 
@@ -91,6 +92,20 @@ export interface CryptoVectors {
     params: { m: number; t: number; p: number };
     saltB64: string;
   }[];
+  backup: {
+    cases: {
+      name: string;
+      password: string;
+      saltHex: string;
+      nonceHex: string;
+      contents: BackupContents;
+      aad: string;
+      backupKeyHex: string;
+      paddedLength: number;
+      file: string;
+    }[];
+    rejected: { name: string; password: string; file: string; error: string }[];
+  };
 }
 
 export const vectors = JSON.parse(readFileSync(path, "utf8")) as CryptoVectors;
