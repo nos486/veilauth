@@ -31,7 +31,7 @@ scripts/
 docs/
   DECISIONS.md  THREAT_MODEL.md  SELF_HOSTING.md
   smoke-test.sh        post-deploy check: scripts/smoke-test.sh https://your-domain
-.github/workflows/  ci.yml, codeql.yml, release.yml (tag → signed Android app + GitHub Release)
+.github/workflows/  ci.yml (tests on every push), release.yml (tag → signed Android app + GitHub Release)
 ```
 
 ## Local development
@@ -116,7 +116,7 @@ under your password KEK and once under a 24-word recovery key. Read the full det
 - [x] `@zk2fa/otp`: HOTP, TOTP, Steam, otpauth:// parser/serializer, Google Authenticator migration (multi-QR)
 - [x] `@zk2fa/crypto`: Argon2id (hash-wasm), HKDF/AES-GCM/PBKDF2/HMAC (WebCrypto), key wrap, recovery words, item envelopes, padding, tamper cases fail
 - [x] `docs/DECISIONS.md`, `docs/THREAT_MODEL.md`
-- [x] CI: lint, typecheck, tests, vector drift, dependency audit, CodeQL, secret scan
+- [x] CI: lint, typecheck, tests, vector drift, dependency audit, secret scan (CodeQL removed in D-052)
 
 ### Phase 1 exit checklist
 

@@ -154,7 +154,7 @@ vault, and Google Play forbids it. Instead:
 ## D-020 Automated builds and releases
 
 - Every PR and push to `main`: format, lint, typecheck, tests, vector drift check, dependency
-  audit, CodeQL, secret scan (Phase 0, `.github/workflows/ci.yml`).
+  audit, secret scan (Phase 0, `.github/workflows/ci.yml`).
 - Push to `main`: Cloudflare Workers Builds deploys the Worker and web app to production
   (D-050; until then GitHub Actions deployed to staging).
 - Tag `v*`: signed APK + AAB built in GitHub Actions with the keystore from
@@ -432,3 +432,12 @@ migration in file order, each as one D1 batch (one transaction) together with it
 isolates race, the loser sees the migration recorded and carries on. Cost: one small query per
 isolate start. Migrations stay forward-only and must be safe to run against live data, since
 there is no separate migration step before the new code serves traffic.
+
+## D-052 Only two workflows
+
+Sina asked to remove every workflow and deployment that isn't needed. What remains:
+`ci.yml` (format, lint, typecheck, unit/Worker/E2E/Android tests, drift checks, dependency
+audit, secret scan) and `release.yml` (a `v*` tag builds the signed Android app and the GitHub
+Release the in-app updater reads, D-019). Cloudflare Workers Builds is the only deploy. The
+weekly CodeQL workflow is gone: strict TypeScript, ESLint, the dependency audit and the tests
+stay as the gate. Re-add `codeql.yml` if the repository becomes public with outside contributors.
