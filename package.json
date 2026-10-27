@@ -22,7 +22,7 @@
     "eslint": "^9.39.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.6.2",
-    "turbo": "^2.5.8",
+    "turbo": "^2.11.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.0",
     "vitest": "^3.2.4"
