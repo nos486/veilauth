@@ -79,7 +79,19 @@ jobs:
       - name: Kotlin core modules against spec/test-vectors.json
         run: apps/android/scripts/gradle-ci.sh -Pveilauth.coreOnly=true test
       - name: App unit tests, debug APKs and lint
-        run: apps/android/scripts/gradle-ci.sh :app:testGithubDebugUnitTest :app:assembleGithubDebug :app:assembleFdroidDebug :app:lintGithubDebug
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        # The debug APK talks to the production Worker when the PRODUCTION_URL variable is set.
+        run: |
+          apps/android/scripts/gradle-ci.sh ${PRODUCTION_URL:+-Pveilauth.apiBaseUrl=$PRODUCTION_URL} \
+            :app:testGithubDebugUnitTest :app:assembleGithubDebug :app:assembleFdroidDebug :app:lintGithubDebug
+      # Installable test build for every push and PR; signed releases come from release.yml (tag v*).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: veilauth-debug-apk
+          path: apps/android/app/build/outputs/apk/github/debug/app-github-debug.apk
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
