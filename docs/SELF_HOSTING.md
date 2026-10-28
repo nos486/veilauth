@@ -86,6 +86,10 @@ Pushing a tag such as `v0.1.0` runs `release.yml`, which builds the signed Andro
 publishes a GitHub Release. Set these in GitHub → **Settings** → **Secrets and variables** →
 **Actions**. Without them the release has no APK, and the workflow prints a warning.
 
+For testing without any of this, every CI run also uploads a debug APK as the
+`veilauth-debug-apk` artifact (GitHub → **Actions** → the run → **Artifacts**). It is signed with a
+throwaway debug key, so it cannot be updated in place by a release build: uninstall it first.
+
 | Name                        | Kind     | Value                                                                       |
 | --------------------------- | -------- | --------------------------------------------------------------------------- |
 | `ANDROID_KEYSTORE_BASE64`   | secret   | the release keystore, base64-encoded (see below)                            |
